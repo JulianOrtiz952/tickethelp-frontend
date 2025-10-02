@@ -59,7 +59,7 @@ const toggleNotification = (key) => {
           <Card title="Información Personal">
             <div className="flex flex-col items-center mb-6">
               <img
-                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
+                src="/default_avatar.svg"
                 alt="Avatar"
                 className="w-24 h-24 rounded-full mb-4"
               />

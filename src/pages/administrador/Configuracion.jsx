@@ -1,7 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Card from "../../components/Card"
+
+function validatePasswordStrength(password) {
+  const criteria = {
+    minLength: password.length >= 8,
+    hasUpperCase: /[A-Z]/.test(password),
+    hasLowerCase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecialChar: /[!@#$%^&*(),.?":{}|<>/+.]/.test(password),
+  };
+
+  const metCriteria = Object.values(criteria).filter(Boolean).length;
+
+  let strength = "weak";
+  if (metCriteria >= 5) strength = "strong";
+  else if (metCriteria >= 3) strength = "medium";
+
+  return { criteria, strength, metCriteria };
+}
+
 
 export default function Configuracion() {
   const [notifications, setNotifications] = useState({
@@ -16,6 +35,13 @@ export default function Configuracion() {
     confirm: "",
   })
 
+  const passwordStrength = useMemo(() => {
+    if (!passwords.new) return null
+    return validatePasswordStrength(passwords.new)
+  }, [passwords.new])
+
+  const passwordsMatch = passwords.new && passwords.confirm && passwords.new === passwords.confirm
+
 const toggleNotification = (key) => {
   setNotifications((prev) => ({ 
     ...prev, 
@@ -23,93 +49,91 @@ const toggleNotification = (key) => {
   }));
 };
 
-
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-6">Configuración</h1>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
         {/* Card Información Personal */}
-        <Card title="Información Personal">
-          <div className="flex flex-col items-center mb-6">
-            <img
-              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
-              alt="Avatar"
-              className="w-24 h-24 rounded-full mb-4"
-            />
-            <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-              <i className="mr-2">📷</i> Cambiar foto
-            </button>
-            <p className="text-sm text-gray-500 mt-2">PNG o JPG hasta 5MB</p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
-              <input
-                type="text"
-                defaultValue="Daniela Alejandra"
-                placeholder="Ingrese su nombre"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-                           focus:ring-2 focus:ring-red-600 focus:border-transparent"
+        <div className="h-full">
+          <Card title="Información Personal">
+            <div className="flex flex-col items-center mb-6">
+              <img
+                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
+                alt="Avatar"
+                className="w-24 h-24 rounded-full mb-4"
               />
+              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <i className="mr-2">📷</i> Cambiar foto
+              </button>
+              <p className="text-sm text-gray-500 mt-2">PNG o JPG hasta 5MB</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Apellidos</label>
-              <input
-                type="text"
-                defaultValue="Barreto Ibarra"
-                placeholder="Ingrese sus apellidos"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-                           focus:ring-2 focus:ring-red-600 focus:border-transparent"
-              />
-            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>
+                <input
+                  type="text"
+                  defaultValue="Daniela Alejandra"
+                  placeholder="Ingrese su nombre"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Documento</label>
-              <input
-                type="text"
-                defaultValue="1005028830"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                readOnly
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Apellidos</label>
+                <input
+                  type="text"
+                  defaultValue="Barreto Ibarra"
+                  placeholder="Ingrese sus apellidos"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
-              <input
-                type="tel"
-                placeholder="Ingrese su teléfono"
-                defaultValue="3222686993"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg 
-                           focus:ring-2 focus:ring-red-600 focus:border-transparent"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Documento</label>
+                <input
+                  type="text"
+                  defaultValue="1005028830"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Correo electrónico</label>
-              <input
-                type="email"
-                defaultValue="danielaalejandrabi@ufps.edu.co"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                readOnly
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+                <input
+                  type="tel"
+                  placeholder="Ingrese su teléfono"
+                  defaultValue="3222686993"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-              <input
-                type="text"
-                defaultValue="Administrador"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
-                readOnly
-              />
-            </div>
-          </div>
-        </Card>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Correo electrónico</label>
+                <input
+                  type="email"
+                  defaultValue="danielaalejandrabi@ufps.edu.co"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
+              </div>
 
-        <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                <input
+                  type="text"
+                  defaultValue="Administrador"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <div className="h-full flex flex-col gap-6">
           {/* Card Preferencias */}
           <Card title="Preferencias">
             <div className="space-y-6">
@@ -122,12 +146,12 @@ const toggleNotification = (key) => {
                       type="radio"
                       name="tema"
                       defaultChecked
-                      className="w-4 h-4 text-red-600 focus:ring-red-500"
+                      className="w-4 h-4 text-red-600"
                     />
                     <span className="text-sm">Claro</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="tema" className="w-4 h-4 text-red-600 focus:ring-red-500" />
+                    <input type="radio" name="tema" className="w-4 h-4 text-red-600" />
                     <span className="text-sm">Oscuro</span>
                   </label>
                 </div>
@@ -142,7 +166,7 @@ const toggleNotification = (key) => {
                     <button
                       type="button"
                       onClick={() => toggleNotification("solicitudes")}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         notifications.solicitudes ? "bg-teal-600" : "bg-gray-200"
                       }`}
                     >
@@ -159,7 +183,7 @@ const toggleNotification = (key) => {
                     <button
                       type="button"
                       onClick={() => toggleNotification("alertas")}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         notifications.alertas ? "bg-teal-600" : "bg-gray-200"
                       }`}
                     >
@@ -176,7 +200,7 @@ const toggleNotification = (key) => {
                     <button
                       type="button"
                       onClick={() => toggleNotification("tickets")}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                         notifications.tickets ? "bg-teal-600" : "bg-gray-200"
                       }`}
                     >
@@ -192,63 +216,122 @@ const toggleNotification = (key) => {
             </div>
           </Card>
 
-          <Card title="Seguridad">
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña actual
-                </label>
-                <input
-                  id="current-password"
-                  type="password"
-                  value={passwords.current}
-                  onChange={(e) => setPasswords((prev) => ({ ...prev, current: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
-                />
-              </div>
+          <div className="flex-1">
+            <Card title="Seguridad">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Contraseña actual
+                  </label>
+                  <input
+                    id="current-password"
+                    type="password"
+                    value={passwords.current}
+                    onChange={(e) => setPasswords((prev) => ({ ...prev, current: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  />
+                </div>
 
-              <div>
-                <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nueva contraseña
-                </label>
-                <input
-                  id="new-password"
-                  type="password"
-                  value={passwords.new}
-                  onChange={(e) => setPasswords((prev) => ({ ...prev, new: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
-                />
-              </div>
+                <div>
+                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nueva contraseña
+                  </label>
+                  <input
+                    id="new-password"
+                    type="password"
+                    value={passwords.new}
+                    onChange={(e) => setPasswords((prev) => ({ ...prev, new: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  />
 
-              <div>
-                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirmar nueva contraseña
-                </label>
-                <input
-                  id="confirm-password"
-                  type="password"
-                  value={passwords.confirm}
-                  onChange={(e) => setPasswords((prev) => ({ ...prev, confirm: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-600 focus:border-transparent"
-                />
-              </div>
+                  {passwords.new && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex gap-1">
+                        <div
+                          className={`h-2 flex-1 rounded-full transition-colors ${
+                            passwordStrength?.metCriteria >= 1
+                              ? passwordStrength.strength === "weak"
+                                ? "bg-red-500"
+                                : passwordStrength.strength === "medium"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              : "bg-gray-200"
+                          }`}
+                        />
+                        <div
+                          className={`h-2 flex-1 rounded-full transition-colors ${
+                            passwordStrength?.metCriteria >= 3
+                              ? passwordStrength.strength === "medium"
+                                ? "bg-yellow-500"
+                                : passwordStrength.strength === "strong"
+                                  ? "bg-green-500"
+                                  : "bg-gray-200"
+                              : "bg-gray-200"
+                          }`}
+                        />
+                        <div
+                          className={`h-2 flex-1 rounded-full transition-colors ${
+                            passwordStrength?.strength === "strong" ? "bg-green-500" : "bg-gray-200"
+                          }`}
+                        />
+                      </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
-                >
-                  Actualizar
-                </button>
-                <button
-                  type="button"
-                  className="flex-1 px-4 py-2 bg-transparent border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancelar
-                </button>
+                      <div className="text-xs space-y-1 text-gray-600">
+                        <div className={passwordStrength?.criteria.minLength ? "text-green-600" : ""}>
+                          {passwordStrength?.criteria.minLength ? "✓" : "○"} Mínimo 8 caracteres
+                        </div>
+                        <div className={passwordStrength?.criteria.hasUpperCase ? "text-green-600" : ""}>
+                          {passwordStrength?.criteria.hasUpperCase ? "✓" : "○"} Una letra mayúscula
+                        </div>
+                        <div className={passwordStrength?.criteria.hasLowerCase ? "text-green-600" : ""}>
+                          {passwordStrength?.criteria.hasLowerCase ? "✓" : "○"} Una letra minúscula
+                        </div>
+                        <div className={passwordStrength?.criteria.hasNumber ? "text-green-600" : ""}>
+                          {passwordStrength?.criteria.hasNumber ? "✓" : "○"} Un número
+                        </div>
+                        <div className={passwordStrength?.criteria.hasSpecialChar ? "text-green-600" : ""}>
+                          {passwordStrength?.criteria.hasSpecialChar ? "✓" : "○"} Un carácter especial
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirmar nueva contraseña
+                  </label>
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    value={passwords.confirm}
+                    onChange={(e) => setPasswords((prev) => ({ ...prev, confirm: e.target.value }))}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                  />
+                  {passwords.confirm && (
+                    <p className={`text-xs mt-1 ${passwordsMatch ? "text-green-600" : "text-red-600"}`}>
+                      {passwordsMatch ? "✓ Las contraseñas coinciden" : "✗ Las contraseñas no coinciden"}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+                  >
+                    Actualizar
+                  </button>
+                  <button
+                    type="button"
+                    className="flex-1 px-4 py-2 bg-transparent border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancelar
+                  </button>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         </div>
       </div>
     </section>

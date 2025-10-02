@@ -63,7 +63,7 @@ const toggleNotification = (key) => {
                 alt="Avatar"
                 className="w-24 h-24 rounded-full mb-4"
               />
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              <button className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
                 <i className="mr-2">📷</i> Cambiar foto
               </button>
               <p className="text-sm text-gray-500 mt-2">PNG o JPG hasta 5MB</p>
@@ -318,7 +318,7 @@ const toggleNotification = (key) => {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
-                    className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+                    className="flex-1 px-4 py-2 bg-[#1F5E89] text-white rounded-lg hover:bg-[#1B4B6C] transition-colors font-medium"
                   >
                     Actualizar
                   </button>

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "../layouts/administrador/AdminLayout";
 import Configuracion from "../pages/administrador/Configuracion";
+import Tickets from "../pages/administrador/Tickets";
 
 export default function AppRoutes() {
   return (
@@ -10,8 +11,8 @@ export default function AppRoutes() {
 
       {/* Rutas del administrador (anidadas en su layout) */}
       <Route path="/admin" element={<AdminLayout />}>
-        {/* Aquí agreguen sus rutas chicos */}
-        <Route path="configuracion" element={<Configuracion />} />
+       <Route path="tickets" element={<Tickets />} />
+       <Route path="configuracion" element={<Configuracion />} />
       </Route>
 
       {/* 404 */}

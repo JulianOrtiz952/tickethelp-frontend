@@ -77,49 +77,58 @@ const links = [
   },
 ]
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   return (
-    <aside
-      className={`fixed z-30 top-16 left-0 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 shadow-lg transition-all duration-300 ease-out ${
-        collapsed ? "w-20" : "w-64"
-      }`}
-    >
-      <div className="p-4">
-        <button
-          onClick={onToggle}
-          className={`w-full text-left font-semibold text-gray-800 hover:text-[#1F5E89] transition-colors ${
-            collapsed ? "flex justify-center" : ""
-          }`}
-          aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
-        >
-          {collapsed ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          ) : (
-            <span className="text-base">Menú</span>
-          )}
-        </button>
-      </div>
+    <>
+      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={onMobileClose} />}
 
-      <nav className="px-4 pb-4 space-y-1">
-        {links.map((l) => (
-          <NavLink
-            key={l.to}
-            to={l.to}
-            end={l.end}
-            className={({ isActive }) =>
-              `flex items-center rounded-lg py-3 text-sm font-medium transition-all duration-300
-               ${isActive ? "bg-[#1F5E89] text-white shadow-sm" : "text-gray-700 hover:bg-gray-200"}
-               ${collapsed ? "justify-center px-2" : "gap-3 px-4"}`
-            }
-            title={collapsed ? l.label : undefined}
+      <aside
+        className={`fixed z-30 top-16 left-0 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 shadow-lg transition-all duration-300 ease-out
+          ${collapsed ? "w-20" : "w-64"}
+          md:translate-x-0
+          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        <div className="p-4 hidden md:block">
+          <button
+            onClick={onToggle}
+            className={`w-full text-left font-semibold text-gray-800 hover:text-[#1F5E89] transition-colors ${
+              collapsed ? "flex justify-center" : ""
+            }`}
+            aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
           >
-            {l.icon}
-            {!collapsed && <span>{l.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-    </aside>
+            {collapsed ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            ) : (
+              <span className="text-base">Menú</span>
+            )}
+          </button>
+        </div>
+
+        <nav className={`px-4 space-y-1 ${mobileOpen ? "pt-4 md:pt-0" : "pb-4"}`}>
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.end}
+              onClick={() => onMobileClose()}
+              className={({ isActive }) =>
+                `flex items-center rounded-lg py-3 text-sm font-medium transition-all duration-300
+                 ${isActive ? "bg-[#1F5E89] text-white shadow-sm" : "text-gray-700 hover:bg-gray-200"}
+                 ${collapsed || mobileOpen ? "justify-center px-2 md:justify-center md:px-2" : "gap-3 px-4"}
+                 ${mobileOpen ? "md:gap-3 md:px-4" : ""}`
+              }
+              title={collapsed || mobileOpen ? l.label : undefined}
+            >
+              {l.icon}
+              {!collapsed && !mobileOpen && <span className="md:inline">{l.label}</span>}
+              {!collapsed && mobileOpen && <span className="hidden md:inline">{l.label}</span>}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+    </>
   )
 }

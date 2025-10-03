@@ -1,10 +1,20 @@
 "use client"
 
-export default function Topbar() {
+export default function Topbar({ onMobileMenuToggle }) {
   return (
     <header className="sticky top-0 z-40 bg-[#1F5E89] text-white shadow-md">
       <div className="flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-3">
+          <button
+            onClick={onMobileMenuToggle}
+            className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Toggle menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           <img src="/logo_ticket-help.svg" alt="Ticket-Help Logo" className="w-10 h-10" />
           <span className="text-xl font-semibold">Ticket-Help</span>
         </div>

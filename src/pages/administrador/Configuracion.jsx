@@ -61,7 +61,7 @@ export default function Configuracion() {
   const passwordsMatch = passwords.new && passwords.confirm && passwords.new === passwords.confirm
 
     useEffect(() => {
-    loadUserData("1090374741"); //El caremondá de Julián
+    loadUserData("0202"); //El caremondá de Julián
 }, []);
 
 const loadUserData = async (userDocument) => {
@@ -128,7 +128,8 @@ const loadUserData = async (userDocument) => {
     setTimeout(() => setPasswordMessage(null), 2500);
   } catch (e) {
     const msg =
-      e.current_password || e.new_password_confirm || e.new_password || e.detail || "No se pudo cambiar la contraseña.";
+      // e.current_password || e.new_password_confirm || e.new_password || e.detail || 
+      "No se pudo cambiar la contraseña.";
     setPasswordMessage({ type: "error", text: Array.isArray(msg) ? msg.join(" ") : msg });
   } finally {
     setIsLoadingPassword(false);

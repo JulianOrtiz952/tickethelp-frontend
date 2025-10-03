@@ -18,7 +18,7 @@ export default function ConsultaUsuario() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setUsuario({ success: true, message: data.message });
+        setUsuario(data.data); // 👈 aquí guardamos los datos del cliente
         setError("");
       } else {
         setUsuario(null);
@@ -35,7 +35,6 @@ export default function ConsultaUsuario() {
       <h2 className="text-lg font-bold text-gray-800 mb-4">
         Consulta el usuario <span className="text-red-500">*</span>
       </h2>
-
       <p className="text-gray-600 mb-2 text-sm">
         Ingrese el número de identificación del usuario
       </p>
@@ -43,8 +42,8 @@ export default function ConsultaUsuario() {
       {/* Input y botón dentro de un form */}
       <form
         onSubmit={(e) => {
-          e.preventDefault();   // evita recarga de la página
-          manejarBusqueda();    // ejecuta la búsqueda
+          e.preventDefault();
+          manejarBusqueda();
         }}
         className="flex gap-2"
       >
@@ -61,20 +60,31 @@ export default function ConsultaUsuario() {
         />
 
         <button
-          type="submit"   // Enter funciona por estar dentro del <form>
+          type="submit"
           className="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700"
         >
           Buscar
         </button>
       </form>
 
-      {/* Mostrar resultado */}
+      {/* Mensaje de éxito */}
       {usuario && (
         <div className="mt-4 p-4 rounded bg-green-100 text-green-700">
-          {usuario.success && "✅ "} {usuario.message}
+          ✅ Cliente encontrado exitosamente
         </div>
       )}
 
+      {/* Datos del usuario */}
+      {usuario && (
+        <div className="mt-4 p-4 border rounded bg-gray-50 text-gray-800">
+          <p><strong>Nombre completo:</strong> {usuario.first_name} {usuario.last_name}</p>
+          <p><strong>Documento:</strong> {usuario.document}</p>
+          <p><strong>Teléfono:</strong> {usuario.number}</p>
+          <p><strong>Correo:</strong> {usuario.email}</p>
+        </div>
+      )}
+
+      {/* Mensaje de error */}
       {error && (
         <div className="mt-4 p-4 rounded bg-red-100 text-red-700">
           ❌ {error}

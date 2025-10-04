@@ -21,7 +21,7 @@ export async function updateMe(document, payload) {
 }
 
 export async function changePassword(document, body) {
-  return api(`/api/me/change-password/${encodeURIComponent(document)}`, {
+  return api(`/api/me/change-password/${encodeURIComponent(document)}/`, {
     method: "POST",
     body,
   });

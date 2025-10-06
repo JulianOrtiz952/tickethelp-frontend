@@ -438,7 +438,7 @@ export default function UsersPage() {
                                                     ✏️
                                                 </button>
 
-                                                <button title="Ver (pendiente)" className="px-2 py-1 border rounded hover:bg-gray-50" disabled>👁️</button>
+
                                                 <button
                                                     title="Desactivar"
                                                     className="px-2 py-1 border rounded hover:bg-gray-50"
@@ -455,7 +455,7 @@ export default function UsersPage() {
                             <span>
                                 Mostrando {rows.length} de {total} {total === 1 ? "usuario" : "usuarios"}
                             </span>
-                            <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+
                         </div>
                     </div>
 

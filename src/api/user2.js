@@ -7,8 +7,7 @@ export const ROLES = ["ADMIN", "TECH", "CLIENT"];
 export function mapUserToRow(u) {
     if (!u) return null;
     return {
-        id: u.id ?? Math.random().toString(36).slice(2),
-        pk: u.id,
+        id: u.document, // ahora el pk es document
         document: u.document,
         nombre: [u.first_name, u.last_name].filter(Boolean).join(" "),
         correo: u.email,
@@ -20,6 +19,7 @@ export function mapUserToRow(u) {
     };
 }
 
+/** Validación de creación */
 export function validateNewUserPayload(payload) {
     const errors = {};
     if (!payload) return { valid: false, errors: { general: "Payload requerido" } };
@@ -39,18 +39,17 @@ export function validateNewUserPayload(payload) {
     return { valid: Object.keys(errors).length === 0, errors };
 }
 
-const USERS = "/api/users//";
+/** 📡 Endpoints base */
+const USERS = "/api/users//"; // doble barra para listado
+const USER_DETAIL = (document) => `/api/users//${encodeURIComponent(String(document))}/`;
+const USER_DEACTIVATE = (document) => `/api/users//${encodeURIComponent(String(document))}/deactivate/`;
 
-
-const USER_DETAIL_BY_ID = (id) => `/api/users/${encodeURIComponent(String(id))}/`;
-const USER_DEACTIVATE_BY_ID = (id) => `/api/users/${encodeURIComponent(String(id))}/deactivate/`;
-
-/** Lista completa */
+/** Obtener todos los usuarios */
 export async function listUsers() {
-    return api(USERS);
+    return api(USERS); // GET /api/users//
 }
 
-/** Buscar por document en la lista general (cualquier rol) */
+/** Obtener un usuario por documento */
 export async function getUserByDocument(document, { normalize = false } = {}) {
     const doc = String(document || "").trim();
     if (!doc) {
@@ -58,92 +57,92 @@ export async function getUserByDocument(document, { normalize = false } = {}) {
         e.status = 400;
         throw e;
     }
-    const all = await listUsers();
-    if (!Array.isArray(all)) throw new Error("Respuesta inesperada del backend");
-    const found = all.find((u) => String(u.document) === doc);
-    if (!found) {
-        const e = new Error("Usuario no encontrado");
-        e.status = 404;
-        throw e;
-    }
-    return normalize ? mapUserToRow(found) : found;
+    const data = await api(USER_DETAIL(doc)); // GET /api/users/{document}/
+    return normalize ? mapUserToRow(data) : data;
 }
 
 /** Crear usuario */
-export async function createUser(payload, { precheckDuplicates = true } = {}) {
+export async function createUser(payload) {
     const v = validateNewUserPayload(payload);
-    if (!v.valid) {
-        throw { code: "VALIDATION_ERROR", errors: v.errors, message: "Validación fallida" };
+    if (!v.valid) throw { code: "VALIDATION_ERROR", errors: v.errors };
+
+    return api(USERS, { method: "POST", body: payload });
+}
+
+
+
+
+/** ✅ Actualizar usuario*/
+export async function updateUser(document, partialPayload = {}) {
+    const url = `/api/users//${encodeURIComponent(String(document))}/`;
+
+
+    const current = await api(url); // GET
+
+
+    const trim = (v) => (typeof v === "string" ? v.trim() : v);
+    const normNum = (v) => (v == null ? null : String(v).replace(/\s+/g, ""));
+    const upper = (v) => (typeof v === "string" ? v.toUpperCase() : v);
+
+
+    const nextRaw = {
+
+        username: current.username ?? undefined,
+        email: trim(partialPayload.email ?? current.email ?? ""),
+        role: upper(trim(partialPayload.role ?? current.role ?? "")),
+        is_active: (partialPayload.is_active !== undefined
+            ? Boolean(partialPayload.is_active)
+            : (typeof current.is_active === "boolean" ? current.is_active : undefined)),
+        document: current.document ?? undefined,
+
+
+        first_name: trim(partialPayload.first_name ?? current.first_name ?? ""),
+        last_name: trim(partialPayload.last_name ?? current.last_name ?? ""),
+        number: normNum(partialPayload.number ?? (current.number ?? null)),
+    };
+
+
+    const next = {};
+    for (const [k, v] of Object.entries(nextRaw)) {
+        if (v === undefined) continue;
+        if (typeof v === "string" && v.trim() === "") continue; // evita allow_blank=False
+        next[k] = v;
     }
 
-    if (precheckDuplicates) {
-        try {
-            const list = await listUsers();
-            const exists = Array.isArray(list) &&
-                list.some((u) => String(u.email).toLowerCase() === String(payload.email).toLowerCase());
-            if (exists) throw { code: "EMAIL_DUPLICATE", message: "correo ya registrado" };
-        } catch { /* si falla el precheck, seguimos */ }
-    }
 
     try {
-        return await api(USERS, { method: "POST", body: payload });
+
+        const out = await api(url, { method: "PATCH", body: next });
+        return out;
     } catch (err) {
-        const msg = (err?.message || err?.detail || "").toLowerCase();
-        if (msg.includes("duplic") || msg.includes("already") || msg.includes("correo")) {
-            throw { code: "EMAIL_DUPLICATE", message: "correo ya registrado" };
+
+
+        if (err?.status === 404 || err?.status === 405) {
+            const out = await api(url, { method: "PUT", body: next });
+            return out;
         }
+
+        console.error("Update failed:", err);
         throw err;
     }
 }
 
-/** Actualizar por DOCUMENT, resolviendo primero el PK y luego PATCH /api/users/{id}/ */
-export async function updateUser(document, partialPayload) {
-    const target = await getUserByDocument(document);
-    const id = target?.id;
-    if (!id && id !== 0) {
-        const e = new Error("El backend no devuelve 'id' en el listado. Pide al backend agregar 'id' al serializer.");
-        e.code = "MISSING_ID";
-        throw e;
-    }
-    // Sanitiza y normaliza
-    const body = {};
-    if (partialPayload.first_name !== undefined) body.first_name = String(partialPayload.first_name).trim();
-    if (partialPayload.last_name !== undefined) body.last_name = String(partialPayload.last_name).trim();
-    if (partialPayload.email !== undefined) body.email = String(partialPayload.email).trim();
-    if (partialPayload.number !== undefined) body.number = partialPayload.number ? String(partialPayload.number).replace(/\s+/g, "") : null;
-    if (partialPayload.role !== undefined) body.role = String(partialPayload.role).toUpperCase().trim();
-    if (partialPayload.is_active !== undefined) body.is_active = Boolean(partialPayload.is_active);
 
-    return api(USER_DETAIL_BY_ID(id), { method: "PATCH", body });
-}
 
-/** Desactivar por DOCUMENT usando acción /deactivate/ del ViewSet */
+
+
+/** Desactivar usuario */
 export async function deleteOrSuggestDeactivate(document) {
-    const target = await getUserByDocument(document);
-    const id = target?.id;
-    if (!id && id !== 0) {
-        const e = new Error("El backend no devuelve 'id' en el listado. Pide al backend agregar 'id' al serializer.");
-        e.code = "MISSING_ID";
-        throw e;
-    }
     try {
-        const resp = await api(USER_DEACTIVATE_BY_ID(id), { method: "POST" });
+        const resp = await api(USER_DEACTIVATE(document), { method: "POST" });
         return { action: "deactivated", message: resp?.detail || "Usuario desactivado." };
-    } catch (err) {
-        // fallback: PATCH is_active=false
-        await api(USER_DETAIL_BY_ID(id), { method: "PATCH", body: { is_active: false } });
-        return { action: "deactivated", message: "Usuario desactivado." };
+    } catch {
+        await api(USER_DETAIL(document), { method: "PATCH", body: { is_active: false } });
+        return { action: "deactivated", message: "Usuario desactivado (por fallback)." };
     }
 }
 
-/** Reactivar por DOCUMENT (PATCH is_active=true) */
+/** Reactivar usuario */
 export async function reactivateUser(document) {
-    const target = await getUserByDocument(document);
-    const id = target?.id;
-    if (!id && id !== 0) {
-        const e = new Error("El backend no devuelve 'id' en el listado. Pide al backend agregar 'id' al serializer.");
-        e.code = "MISSING_ID";
-        throw e;
-    }
-    return api(USER_DETAIL_BY_ID(id), { method: "PATCH", body: { is_active: true } });
+    return api(USER_DETAIL(document), { method: "PATCH", body: { is_active: true } });
 }

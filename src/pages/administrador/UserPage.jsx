@@ -358,13 +358,7 @@ export default function UsersPage() {
                                         <span>＋</span> Crear Usuario
                                     </button>
 
-                                    <button
-                                        type="button"
-                                        className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-gray-700 hover:bg-gray-50"
-                                        disabled
-                                    >
-                                        <span className="inline-block">📝</span> Editar
-                                    </button>
+
                                 </div>
 
                                 <button
@@ -444,7 +438,7 @@ export default function UsersPage() {
                                                     ✏️
                                                 </button>
 
-                                                <button title="Ver (pendiente)" className="px-2 py-1 border rounded hover:bg-gray-50" disabled>👁️</button>
+
                                                 <button
                                                     title="Desactivar"
                                                     className="px-2 py-1 border rounded hover:bg-gray-50"
@@ -461,7 +455,7 @@ export default function UsersPage() {
                             <span>
                                 Mostrando {rows.length} de {total} {total === 1 ? "usuario" : "usuarios"}
                             </span>
-                            <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+
                         </div>
                     </div>
 

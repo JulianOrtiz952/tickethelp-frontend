@@ -1,6 +1,6 @@
 // pages/users/EditUserPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     getUserByDocument,
     updateUser,
@@ -14,35 +14,31 @@ import MessageDialog from "../../components/MessageDialog";
 
 export default function EditUserPage() {
     const { document } = useParams();
-
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-
-    const [user, setUser] = useState(null); // crudo backend
+    const [user, setUser] = useState(null);
     const row = useMemo(() => (user ? mapUserToRow(user) : null), [user]);
-
-    const [fullName, setFullName] = useState(""); // “Juan Carlos Pérez”
+    const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [number, setNumber] = useState("");
     const [role, setRole] = useState("CLIENT");
     const [active, setActive] = useState(true);
     const docShown = (user?.document && String(user.document).trim()) || document || "-";
-    // Modales
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [msg, setMsg] = useState({ open: false, title: "", message: "", variant: "info" });
-
     const [createdShown, setCreatedShown] = useState("-");
+
     useEffect(() => {
         const s = user?.date_joined
             ? user.date_joined.slice(0, 10).split("-").reverse().join("/")
             : "-";
         setCreatedShown(s);
 
-        // Fallback opcional: si quedó "-" intentamos buscar en la lista global
         (async () => {
             if (s !== "-") return;
             try {
-                const all = await listUsers(); // necesita el import
+                const all = await listUsers();
                 const match = Array.isArray(all) && all.find(u =>
                     (u.document && String(u.document) === String(document)) ||
                     (user?.email && String(u.email).toLowerCase() === String(user.email).toLowerCase())
@@ -53,7 +49,7 @@ export default function EditUserPage() {
             } catch {/* si falla, lo dejamos en "-" */ }
         })();
     }, [user, document]);
-    // Cargar datos
+
     useEffect(() => {
         (async () => {
             try {
@@ -63,7 +59,6 @@ export default function EditUserPage() {
                 if (!data) throw new Error("Usuario no encontrado");
 
                 setUser(data);
-
                 setEmail(data.email || "");
                 setNumber(data.number || "");
                 setRole((data.role || "CLIENT").toUpperCase());
@@ -89,23 +84,49 @@ export default function EditUserPage() {
         return user.date_joined.slice(0, 10).split("-").reverse().join("/");
     }, [user]);
 
-    // Guardar cambios básicos
     async function handleSave() {
         try {
             setSaving(true);
 
-            const [first_name = "", last_name = ""] = splitFullName(fullName);
+            // 1) Partir el nombre completo
+            const [fn = "", ln = ""] = splitFullName(fullName);
+            const nextFirst = fn.trim();
+            const nextLast = ln.trim();
 
-            // Sanitiza
-            const payload = {
-                first_name: first_name.trim(),
-                last_name: last_name.trim(),
-                email: String(email || "").trim(),
-                number: String(number || "").replace(/\s+/g, ""),
-                role: String(role || "CLIENT").toUpperCase().trim(),
-                is_active: Boolean(active),
-            };
+            // 2) Normalizar teléfono (sin espacios)
+            const nextNumber = String(number || "").replace(/\s+/g, "");
 
+            // 3) Construir payload SOLO con campos válidos y que cambian
+            const payload = {};
+
+            if (nextFirst && nextFirst !== (user.first_name || "")) {
+                payload.first_name = nextFirst;
+            }
+
+            if (nextLast && nextLast !== (user.last_name || "")) {
+                payload.last_name = nextLast;
+            }
+
+
+            if (nextNumber && nextNumber !== (user.number || "")) {
+                payload.number = nextNumber;
+            }
+
+
+            // 4) Validar cambios reales
+            const hasChanges = Object.keys(payload).length > 0;
+
+            if (!hasChanges) {
+                setMsg({
+                    open: true,
+                    title: "Sin cambios",
+                    message: "No se proporcionaron datos para actualizar.",
+                    variant: "warning",
+                });
+                return;
+            }
+
+            console.log("Sending PATCH payload:", payload);
             await updateUser(document, payload);
 
             setMsg({
@@ -115,7 +136,7 @@ export default function EditUserPage() {
                 variant: "success",
             });
 
-            // Refresca
+            // Refrescar
             const fresh = await getUserByDocument(document);
             setUser(fresh);
             setTimeout(() => navigate(-1), 400);
@@ -132,7 +153,7 @@ export default function EditUserPage() {
         }
     }
 
-    // Desactivar / Reactivar
+
     async function handleDeactivate() {
         try {
             const res = await deleteOrSuggestDeactivate(document);
@@ -143,7 +164,6 @@ export default function EditUserPage() {
         }
     }
 
-
     async function handleReactivate() {
         try {
             await reactivateUser(document);
@@ -153,7 +173,6 @@ export default function EditUserPage() {
             setMsg({ open: true, title: "No se pudo reactivar", message: err?.message || "Intenta de nuevo.", variant: "error" });
         }
     }
-
 
     if (loading) {
         return (
@@ -173,7 +192,6 @@ export default function EditUserPage() {
 
     return (
         <div className="p-6">
-            {/* Header / Card info (estilo maqueta 2) */}
             <div className="bg-white rounded-xl border p-5 mb-6">
                 <div className="flex items-start gap-4">
                     <div className="flex flex-col items-center">
@@ -182,7 +200,6 @@ export default function EditUserPage() {
                             Cambiar foto
                         </button>
                     </div>
-
                     <div className="flex-1">
                         <h2 className="text-lg font-semibold">Información del Usuario</h2>
                         <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-700">
@@ -198,11 +215,8 @@ export default function EditUserPage() {
                     </div>
                 </div>
             </div>
-
-            {/* Formulario de edición */}
             <div className="bg-white rounded-xl border p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Nombre completo */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                         <input
@@ -212,18 +226,14 @@ export default function EditUserPage() {
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
                         />
                     </div>
-
-                    {/* Número de Documento (visible y deshabilitado) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Número de Documento</label>
-                        + <input
+                        <input
                             value={docShown}
                             disabled
                             className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2"
                         />
                     </div>
-
-                    {/* Correo */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
                         <input
@@ -233,8 +243,6 @@ export default function EditUserPage() {
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
                         />
                     </div>
-
-                    {/* Teléfono */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Número de Teléfono</label>
                         <input
@@ -244,8 +252,6 @@ export default function EditUserPage() {
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
                         />
                     </div>
-
-                    {/* Tipo de Documento (sólo UI) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
                         <input
@@ -254,23 +260,18 @@ export default function EditUserPage() {
                             className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2"
                         />
                     </div>
-
-                    {/* Rol */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Rol de Usuario</label>
-                        <select
+                        <input
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
-                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
-                        >
-                            <option value="ADMIN">Administrador</option>
-                            <option value="TECH">Técnico</option>
-                            <option value="CLIENT">Cliente</option>
-                        </select>
+                            disabled
+                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2"
+
+
+                        />
                     </div>
                 </div>
-
-                {/* Configuración de cuenta */}
                 <hr className="my-6 border-gray-200" />
                 <div>
                     <h3 className="text-base font-semibold text-gray-800">Configuración de Cuenta</h3>
@@ -285,8 +286,6 @@ export default function EditUserPage() {
                         <label htmlFor="activo" className="text-sm text-gray-700">Activo</label>
                     </div>
                 </div>
-
-                {/* Footer buttons */}
                 <div className="mt-6 flex items-center justify-between">
                     <button
                         type="button"
@@ -295,7 +294,6 @@ export default function EditUserPage() {
                     >
                         Cancelar
                     </button>
-
                     <div className="flex gap-3">
                         {active ? (
                             <button
@@ -325,8 +323,6 @@ export default function EditUserPage() {
                     </div>
                 </div>
             </div>
-
-            {/* Confirm y mensajes */}
             <ConfirmDialog
                 open={confirmOpen}
                 title="Desactivar usuario"
@@ -337,7 +333,6 @@ export default function EditUserPage() {
                     await handleDeactivate();
                 }}
             />
-
             <MessageDialog
                 open={msg.open}
                 title={msg.title}
@@ -349,7 +344,6 @@ export default function EditUserPage() {
     );
 }
 
-/** Util: partir "Nombre Completo" en first_name / last_name */
 function splitFullName(full) {
     const s = String(full || "").trim().split(/\s+/);
     if (s.length <= 1) return [s[0] || "", ""];
@@ -358,7 +352,6 @@ function splitFullName(full) {
     return [first, last];
 }
 
-/** Extrae mensaje útil de un dict de errores del backend */
 function fieldErrorToText(err) {
     if (err && typeof err === "object") {
         const keys = Object.keys(err).filter((k) => !["status", "url"].includes(k));

@@ -2,7 +2,7 @@ import { api } from "./client";
 
 // ✅ Asegúrate de tener este export nombrado
 export async function listUsers() {
-  return api("/api/users//"); // respeta el doble slash que te dieron
+  return api("/api/users/"); // respeta el doble slash que te dieron
 }
 
 // ✅ Y que getUserByDocument la use (si quieres)
@@ -28,5 +28,5 @@ export async function changePassword(document, body) {
 }
 
 export async function createUser(payload) {
-  return api("/api/users//", { method: "POST", body: payload });
+  return api("/api/users/", { method: "POST", body: payload });
 }

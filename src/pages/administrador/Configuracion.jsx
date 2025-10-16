@@ -71,7 +71,7 @@ const loadUserData = async (userDocument) => {
     setDocument(data.document || "");
     setEmail(data.email || "");
     setPhone(data.number || "");
-    setRole(data.role || "");
+    setRole(data.role === "ADMIN" ? "Administrador" : data.role === "TECH" ? "Técnico" : "Cliente");
     setNombre(data.first_name || "");
     setApellido(data.last_name || "");
   } catch (error) {
@@ -155,7 +155,7 @@ const loadUserData = async (userDocument) => {
         <div className="h-full">
           <Card title="Información Personal">
             <div className="flex flex-col items-center mb-6">
-              <img src="/default_avatar.svg" alt="Avatar" className="w-24 h-24 rounded-full mb-4" />
+              <img src="https://api.dicebear.com/9.x/thumbs/svg?seed=Liam" alt="Avatar" className="w-24 h-24 rounded-full mb-4" />
               <button className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

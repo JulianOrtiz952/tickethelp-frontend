@@ -40,9 +40,9 @@ export function validateNewUserPayload(payload) {
 }
 
 /** 📡 Endpoints base */
-const USERS = "/api/users//"; // doble barra para listado
-const USER_DETAIL = (document) => `/api/users//${encodeURIComponent(String(document))}/`;
-const USER_DEACTIVATE = (document) => `/api/users//${encodeURIComponent(String(document))}/deactivate/`;
+const USERS = "/api/users/"; // doble barra para listado
+const USER_DETAIL = (document) => `/api/users/${encodeURIComponent(String(document))}/`;
+const USER_DEACTIVATE = (document) => `/api/users/${encodeURIComponent(String(document))}/deactivate/`;
 
 /** Obtener todos los usuarios */
 export async function listUsers() {
@@ -74,7 +74,7 @@ export async function createUser(payload) {
 
 /** ✅ Actualizar usuario*/
 export async function updateUser(document, partialPayload = {}) {
-    const url = `/api/users//${encodeURIComponent(String(document))}/`;
+    const url = `/api/users/${encodeURIComponent(String(document))}/`;
 
 
     const current = await api(url); // GET

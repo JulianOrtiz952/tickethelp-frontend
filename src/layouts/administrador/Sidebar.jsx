@@ -80,7 +80,7 @@ const links = [
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   return (
     <>
-      {mobileOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={onMobileClose} />}
+      {mobileOpen && <div className="fixed inset-0 bg-black/100 z-20 md:hidden" onClick={onMobileClose} />}
 
       <aside
         className={`fixed z-30 top-16 left-0 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 shadow-lg transition-all duration-300 ease-out

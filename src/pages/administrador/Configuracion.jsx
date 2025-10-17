@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react";
-import Card from "../../components/Card";
-import { getUserByDocument, updateMe, changePassword } from "../../api/users";
+import { useEffect, useMemo, useState } from "react"
+import Card from "../../components/Card"
+import AvatarPicker from "../../components/AvatarPicker"
+import { getUserByDocument, updateMe, changePassword } from "../../api/users"
 
 function validatePasswordStrength(password) {
   const criteria = {
@@ -29,6 +30,8 @@ export default function Configuracion() {
   const [role, setRole] = useState("")
   const [nombre, setNombre] = useState("")
   const [apellido, setApellido] = useState("")
+  const [avatarSeed, setAvatarSeed] = useState("Riley")
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingPassword, setIsLoadingPassword] = useState(false)
@@ -60,82 +63,77 @@ export default function Configuracion() {
 
   const passwordsMatch = passwords.new && passwords.confirm && passwords.new === passwords.confirm
 
-    useEffect(() => {
-    loadUserData("13492062"); //El caremondá de Julián
-}, []);
+  useEffect(() => {
+    loadUserData("13492062") //El caremondá de Julián
+  }, [])
 
-const loadUserData = async (userDocument) => {
-  try {
-    setIsLoading(true);
-    const data = await getUserByDocument(userDocument);
-    setDocument(data.document || "");
-    setEmail(data.email || "");
-    setPhone(data.number || "");
-    setRole(data.role === "ADMIN" ? "Administrador" : data.role === "TECH" ? "Técnico" : "Cliente");
-    setNombre(data.first_name || "");
-    setApellido(data.last_name || "");
-  } catch (error) {
-    console.error(error);
-    setMessage({ type: "error", text: "Error al cargar los datos del usuario." });
-  } finally {
-    setIsLoading(false);
+  const loadUserData = async (userDocument) => {
+    try {
+      setIsLoading(true)
+      const data = await getUserByDocument(userDocument)
+      setDocument(data.document || "")
+      setEmail(data.email || "")
+      setPhone(data.number || "")
+      setRole(data.role === "ADMIN" ? "Administrador" : data.role === "TECH" ? "Técnico" : "Cliente")
+      setNombre(data.first_name || "")
+      setApellido(data.last_name || "")
+    } catch (error) {
+      console.error(error)
+      setMessage({ type: "error", text: "Error al cargar los datos del usuario." })
+    } finally {
+      setIsLoading(false)
+    }
   }
-};
-
 
   const handleUpdateProfile = async () => {
-  try {
-    setIsLoading(true);
-    setMessage(null);
-    await updateMe(document, {
-      first_name: nombre,
-      last_name: apellido,
-      number: phone,
-    });
-    setMessage({ type: "success", text: "Información actualizada correctamente" });
-    setTimeout(() => setMessage(null), 2500);
-  } catch (e) {
-    const msg = e.detail || Object.values(e).flat().join(" | ") || "Error al actualizar.";
-    setMessage({ type: "error", text: msg });
-  } finally {
-    setIsLoading(false);
+    try {
+      setIsLoading(true)
+      setMessage(null)
+      await updateMe(document, {
+        first_name: nombre,
+        last_name: apellido,
+        number: phone,
+      })
+      setMessage({ type: "success", text: "Información actualizada correctamente" })
+      setTimeout(() => setMessage(null), 2500)
+    } catch (e) {
+      const msg = e.detail || Object.values(e).flat().join(" | ") || "Error al actualizar."
+      setMessage({ type: "error", text: msg })
+    } finally {
+      setIsLoading(false)
+    }
   }
-};
-
 
   const handleChangePassword = async () => {
-  try {
-    setIsLoadingPassword(true);
-    setPasswordMessage(null);
+    try {
+      setIsLoadingPassword(true)
+      setPasswordMessage(null)
 
-    if (!passwords.current || !passwords.new || !passwords.confirm) {
-      setPasswordMessage({ type: "error", text: "Complete todos los campos." });
-      return;
+      if (!passwords.current || !passwords.new || !passwords.confirm) {
+        setPasswordMessage({ type: "error", text: "Complete todos los campos." })
+        return
+      }
+      if (passwords.new !== passwords.confirm) {
+        setPasswordMessage({ type: "error", text: "Las nuevas contraseñas no coinciden." })
+        return
+      }
+
+      await changePassword(document, {
+        current_password: passwords.current,
+        new_password: passwords.new,
+        new_password_confirm: passwords.confirm,
+      })
+
+      setPasswordMessage({ type: "success", text: "Contraseña actualizada correctamente" })
+      setPasswords({ current: "", new: "", confirm: "" })
+      setTimeout(() => setPasswordMessage(null), 2500)
+    } catch (e) {
+      const msg = "No se pudo cambiar la contraseña."
+      setPasswordMessage({ type: "error", text: Array.isArray(msg) ? msg.join(" ") : msg })
+    } finally {
+      setIsLoadingPassword(false)
     }
-    if (passwords.new !== passwords.confirm) {
-      setPasswordMessage({ type: "error", text: "Las nuevas contraseñas no coinciden." });
-      return;
-    }
-
-    await changePassword(document, {
-      current_password: passwords.current,
-      new_password: passwords.new,
-      new_password_confirm: passwords.confirm,
-    });
-
-    setPasswordMessage({ type: "success", text: "Contraseña actualizada correctamente" });
-    setPasswords({ current: "", new: "", confirm: "" });
-    setTimeout(() => setPasswordMessage(null), 2500);
-  } catch (e) {
-    const msg =
-      // e.current_password || e.new_password_confirm || e.new_password || e.detail || 
-      "No se pudo cambiar la contraseña.";
-    setPasswordMessage({ type: "error", text: Array.isArray(msg) ? msg.join(" ") : msg });
-  } finally {
-    setIsLoadingPassword(false);
   }
-};
-
 
   const toggleNotification = (key) => {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -145,18 +143,37 @@ const loadUserData = async (userDocument) => {
     setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }))
   }
 
+  const handleSelectAvatar = (seed) => {
+    setAvatarSeed(seed)
+    // Aquí podrás agregar la lógica para actualizar el avatar en el backend cuando esté implementado
+    console.log("Avatar seleccionado:", seed)
+  }
+
   return (
     <section>
       <h1 className="text-2xl font-semibold mb-6">Configuración</h1>
 
+      <AvatarPicker
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        onSelectAvatar={handleSelectAvatar}
+        currentSeed={avatarSeed}
+      />
+
       <div className="grid lg:grid-cols-2 gap-6 items-stretch">
-        
         {/* Card Información Personal */}
         <div className="h-full">
           <Card title="Información Personal">
             <div className="flex flex-col items-center mb-6">
-              <img src="https://api.dicebear.com/9.x/thumbs/svg?seed=Liam" alt="Avatar" className="w-24 h-24 rounded-full mb-4" />
-              <button className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2">
+              <img
+                src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${avatarSeed}`}
+                alt="Avatar"
+                className="w-24 h-24 rounded-full mb-4"
+              />
+              <button
+                onClick={() => setIsAvatarPickerOpen(true)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -180,16 +197,6 @@ const loadUserData = async (userDocument) => {
               </button>
               <p className="text-sm text-gray-500 mt-2">PNG o JPG hasta 5MB</p>
             </div>
-
-            {message && (
-              <div
-                className={`mb-4 p-3 rounded-lg ${
-                  message.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                }`}
-              >
-                {message.text}
-              </div>
-            )}
 
             <div className="space-y-4">
               <div>
@@ -308,12 +315,7 @@ const loadUserData = async (userDocument) => {
                 <label className="block text-sm font-medium text-gray-700 mb-3">Tema del sitio</label>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tema"
-                      defaultChecked
-                      className="w-4 h-4 text-teal-600"
-                    />
+                    <input type="radio" name="tema" defaultChecked className="w-4 h-4 text-teal-600" />
                     <span className="text-sm">Claro</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -654,8 +656,7 @@ const loadUserData = async (userDocument) => {
                     }}
                     disabled={isLoadingPassword}
                     className="flex-1 px-4 py-2 bg-transparent border border-gray-300 text-gray-700 
-                               rounded-lg hover:bg-gray-50 transition-colors font-medium
-                               disabled:opacity-50 disabled:cursor-not-allowed"
+                         rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
                   >
                     Cancelar
                   </button>

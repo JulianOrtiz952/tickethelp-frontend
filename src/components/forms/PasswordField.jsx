@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { HiEye, HiEyeOff } from "react-icons/hi"; // 👈 íconos serios
 
 export default function PasswordField({
     label = "Contraseña",
@@ -9,9 +10,13 @@ export default function PasswordField({
     autoComplete = "current-password",
 }) {
     const [show, setShow] = useState(false);
+
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={name}>
+            <label
+                className="block text-sm font-medium text-gray-700 mb-1"
+                htmlFor={name}
+            >
                 {label}
             </label>
             <div className="relative">
@@ -27,11 +32,11 @@ export default function PasswordField({
                 />
                 <button
                     type="button"
-                    className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
-                    onClick={() => setShow(s => !s)}
+                    className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-[#1F5E89] transition-colors"
+                    onClick={() => setShow((s) => !s)}
                     aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
-                    {show ? "🙈" : "👁️"}
+                    {show ? <HiEyeOff className="w-5 h-5" /> : <HiEye className="w-5 h-5" />}
                 </button>
             </div>
         </div>

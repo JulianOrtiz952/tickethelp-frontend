@@ -21,15 +21,25 @@ export default function Login() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F9FAFB" }}>
-            <div className="w-full max-w-md">
-                <div className="relative bg-white border rounded-2xl shadow-sm px-6 pb-6 pt-12">
-                    <div className="flex justify-center">
-                        <BrandTicket />
-                    </div>
+        <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+            {/* Contenedor RELATIVE para poder posicionar el logo */}
+            <div className="relative w-full max-w-md">
+                {/* LOGO flotando, centrado y sobresaliendo */}
+                <div className="absolute -top-26 left-1/2 -translate-x-1/2 z-10">
+                    <img
+                        src="/logo_ticket-help.svg"
+                        alt="TicketHelp Logo"
+                        className="h-46 w-38 object-contain drop-shadow"
+                        draggable="false"
+                    />
+                </div>
 
+                {/* Tarjeta: agrega pt-14 para dejar espacio al logo “encimita” */}
+                <div className="bg-white border rounded-2xl shadow-sm px-6 pb-6 pt-14">
                     <h1 className="text-center text-2xl font-semibold text-gray-800">Iniciar Sesión</h1>
-                    <p className="text-center text-sm text-gray-500 mt-1">Ingresa tus credenciales para acceder</p>
+                    <p className="text-center text-sm text-gray-500 mt-1">
+                        Ingresa tus credenciales para acceder
+                    </p>
 
                     <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                         <TextField
@@ -39,7 +49,7 @@ export default function Login() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             autoComplete="email"
-                            icon={<span>📧</span>}
+
                         />
                         <PasswordField
                             value={password}
@@ -63,13 +73,14 @@ export default function Login() {
                         <button
                             type="submit"
                             className="w-full rounded-lg py-2.5 font-medium text-white"
-                            style={{ backgroundColor: "#0d9488" }}
-                            onMouseDown={(e) => e.currentTarget.style.backgroundColor = "#0f766e"}
-                            onMouseUp={(e) => e.currentTarget.style.backgroundColor = "#0d9488"}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#0d9488"}
+                            style={{ backgroundColor: "#4494AD" }}
+                            onMouseDown={(e) => (e.currentTarget.style.backgroundColor = "#377b91")}
+                            onMouseUp={(e) => (e.currentTarget.style.backgroundColor = "#4494AD")}
+                            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#4494AD")}
                         >
                             Iniciar Sesión
                         </button>
+
                     </form>
                 </div>
             </div>

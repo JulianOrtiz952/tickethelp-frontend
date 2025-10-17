@@ -14,14 +14,22 @@ export default function ForgotPassword() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F9FAFB" }}>
-            <div className="w-full max-w-md">
-                <div className="relative bg-white border rounded-2xl shadow-sm px-6 pb-6 pt-12">
-                    <div className="flex justify-center">
-                        <BrandTicket />
-                    </div>
+        <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+            <div className="relative w-full max-w-md">
+                {/* Logo flotante */}
+                <div className="absolute -top-26 left-1/2 -translate-x-1/2 z-10">
+                    <img
+                        src="/logo_ticket-help.svg"
+                        alt="TicketHelp Logo"
+                        className="h-46 w-38 object-contain drop-shadow"
+                        draggable="false"
+                    />
+                </div>
 
+                {/* Tarjeta */}
+                <div className="bg-white border rounded-2xl shadow-sm px-6 pb-6 pt-14">
                     <h1 className="text-center text-2xl font-semibold text-gray-800">Recuperar Contraseña</h1>
+                    <p className="text-center text-sm text-gray-500 mt-1">Te enviaremos un enlace para restablecerla</p>
 
                     <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                         <TextField
@@ -42,11 +50,7 @@ export default function ForgotPassword() {
 
                         <button
                             type="submit"
-                            className="w-full rounded-lg py-2.5 font-medium text-white"
-                            style={{ backgroundColor: "#0d9488" }}
-                            onMouseDown={(e) => e.currentTarget.style.backgroundColor = "#0f766e"}
-                            onMouseUp={(e) => e.currentTarget.style.backgroundColor = "#0d9488"}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#0d9488"}
+                            className="w-full rounded-lg py-2.5 font-medium text-white bg-[#4494AD] hover:bg-[#377b91] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F5E89] transition-colors"
                         >
                             Enviar Enlace de Recuperación
                         </button>
@@ -61,4 +65,5 @@ export default function ForgotPassword() {
             </div>
         </div>
     );
+
 }

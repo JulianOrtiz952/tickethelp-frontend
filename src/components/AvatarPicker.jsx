@@ -15,7 +15,7 @@ const AVATAR_SEEDS = [
 ]
 
 export default function AvatarPicker({ isOpen, onClose, onSelectAvatar, currentSeed }) {
-  const [selectedSeed, setSelectedSeed] = useState(currentSeed || "Liam")
+  const [selectedSeed, setSelectedSeed] = useState(currentSeed)
   const [isAnimating, setIsAnimating] = useState(false)
   const [animatingSeed, setAnimatingSeed] = useState(null)
 

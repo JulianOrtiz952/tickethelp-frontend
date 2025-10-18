@@ -3,8 +3,18 @@
 import { useEffect, useMemo, useState } from "react"
 import Card from "../../components/Card"
 import AvatarPicker from "../../components/AvatarPicker"
-import { getUserByDocument, updateMe, changePassword } from "../../api/users"
+import { getUserByDocument, updateMe, changePassword, updateProfilePicture } from "../../api/users"
 
+const AVATAR_SEEDS = [
+    "Emery",
+    "Sophia",
+    "Riley",
+    "Nolan",
+    "Brian",
+    "Jocelyn",
+    "Andrea",
+    "George",
+]
 function validatePasswordStrength(password) {
   const criteria = {
     minLength: password.length >= 8,
@@ -30,7 +40,8 @@ export default function Configuracion() {
   const [role, setRole] = useState("")
   const [nombre, setNombre] = useState("")
   const [apellido, setApellido] = useState("")
-  const [avatarSeed, setAvatarSeed] = useState("Riley")
+  const [avatarSeed, setAvatarSeed] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState("/default_avatar.svg")
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false)
 
   const [isLoading, setIsLoading] = useState(false)
@@ -71,19 +82,38 @@ export default function Configuracion() {
     try {
       setIsLoading(true)
       const data = await getUserByDocument(userDocument)
+      console.log("[v0] Datos del usuario cargados:", data)
+
       setDocument(data.document || "")
       setEmail(data.email || "")
       setPhone(data.number || "")
       setRole(data.role === "ADMIN" ? "Administrador" : data.role === "TECH" ? "Técnico" : "Cliente")
       setNombre(data.first_name || "")
       setApellido(data.last_name || "")
-    } catch (error) {
-      console.error(error)
-      setMessage({ type: "error", text: "Error al cargar los datos del usuario." })
-    } finally {
-      setIsLoading(false)
-    }
-  }
+            // Avatar por URL
+                if (data.profile_picture) {
+        setAvatarUrl(data.profile_picture);
+      } else {
+        const randomSeed = AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)];
+        setAvatarSeed(randomSeed);
+        try {
+          await updateProfilePicture(userDocument, randomSeed); // PUT { profile_picture: url }
+          setAvatarUrl(`https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(randomSeed)}&size=256`);
+        } catch (e) {
+          console.error("Error al guardar avatar aleatorio:", e);
+          // si falla, te quedas con /default_avatar.svg
+        }
+      }
+        } catch (error) {
+          console.error(error);
+          setMessage({
+            type: "error",
+            text: "Error al cargar los datos del usuario.",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
 
   const handleUpdateProfile = async () => {
     try {
@@ -143,11 +173,16 @@ export default function Configuracion() {
     setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }))
   }
 
-  const handleSelectAvatar = (seed) => {
-    setAvatarSeed(seed)
-    // Aquí podrás agregar la lógica para actualizar el avatar en el backend cuando esté implementado
-    console.log("Avatar seleccionado:", seed)
-  }
+  const handleSelectAvatar = async (seed) => {
+    try {
+      await updateProfilePicture(document, seed); // sube el archivo real
+      setAvatarSeed(seed);
+      setAvatarUrl(""); // se puede actualizar tras refetch
+    } catch (error) {
+      console.error("Error al actualizar el avatar:", error);
+      setMessage({ type: "error", text: "Error al actualizar el avatar." });
+    }
+  };
 
   return (
     <section>
@@ -166,7 +201,12 @@ export default function Configuracion() {
           <Card title="Información Personal">
             <div className="flex flex-col items-center mb-6">
               <img
-                src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${avatarSeed}`}
+                src={
+                  avatarUrl ||
+                  `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(
+                    avatarSeed
+                  )}&size=256`
+                }
                 alt="Avatar"
                 className="w-24 h-24 rounded-full mb-4"
               />
@@ -656,7 +696,8 @@ export default function Configuracion() {
                     }}
                     disabled={isLoadingPassword}
                     className="flex-1 px-4 py-2 bg-transparent border border-gray-300 text-gray-700 
-                         rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                               rounded-lg hover:bg-gray-50 transition-colors font-medium
+                               disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancelar
                   </button>

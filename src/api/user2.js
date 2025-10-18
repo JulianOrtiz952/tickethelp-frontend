@@ -46,7 +46,7 @@ const USER_DEACTIVATE = (document) => `/api/users/${encodeURIComponent(String(do
 
 /** Obtener todos los usuarios */
 export async function listUsers() {
-    return api(USERS); // GET /api/users//
+    return api(USERS); // GET /api/users/
 }
 
 /** Obtener un usuario por documento */

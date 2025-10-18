@@ -78,11 +78,11 @@ export default function Configuracion() {
     loadUserData("13492062") //El caremondá de Julián
   }, [])
 
-  const loadUserData = async (userDocument) => {
+    const loadUserData = async (userDocument) => {
     try {
       setIsLoading(true)
       const data = await getUserByDocument(userDocument)
-      console.log("[v0] Datos del usuario cargados:", data)
+      console.log("Datos del usuario cargados:", data)
 
       setDocument(data.document || "")
       setEmail(data.email || "")
@@ -90,30 +90,30 @@ export default function Configuracion() {
       setRole(data.role === "ADMIN" ? "Administrador" : data.role === "TECH" ? "Técnico" : "Cliente")
       setNombre(data.first_name || "")
       setApellido(data.last_name || "")
-            // Avatar por URL
-                if (data.profile_picture) {
-        setAvatarUrl(data.profile_picture);
+      // Avatar por URL
+      if (data.profile_picture) {
+        setAvatarUrl(data.profile_picture)
       } else {
-        const randomSeed = AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)];
-        setAvatarSeed(randomSeed);
+        const randomSeed = AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)]
+        setAvatarSeed(randomSeed)
         try {
-          await updateProfilePicture(userDocument, randomSeed); // PUT { profile_picture: url }
-          setAvatarUrl(`https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(randomSeed)}&size=256`);
+          await updateProfilePicture(userDocument, randomSeed) // PUT { profile_picture: url }
+          setAvatarUrl(`https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(randomSeed)}&size=256`)
         } catch (e) {
-          console.error("Error al guardar avatar aleatorio:", e);
+          console.error("Error al guardar avatar aleatorio:", e)
           // si falla, te quedas con /default_avatar.svg
         }
       }
-        } catch (error) {
-          console.error(error);
-          setMessage({
-            type: "error",
-            text: "Error al cargar los datos del usuario.",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
+    } catch (error) {
+      console.error(error)
+      setMessage({
+        type: "error",
+        text: "Error al cargar los datos del usuario.",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleUpdateProfile = async () => {
     try {
@@ -125,7 +125,7 @@ export default function Configuracion() {
         number: phone,
       })
       setMessage({ type: "success", text: "Información actualizada correctamente" })
-      setTimeout(() => setMessage(null), 2500)
+      setTimeout(() => setMessage(null), 3500)
     } catch (e) {
       const msg = e.detail || Object.values(e).flat().join(" | ") || "Error al actualizar."
       setMessage({ type: "error", text: msg })
@@ -145,6 +145,7 @@ export default function Configuracion() {
       }
       if (passwords.new !== passwords.confirm) {
         setPasswordMessage({ type: "error", text: "Las nuevas contraseñas no coinciden." })
+        setTimeout(() => setMessage(null), 3500)
         return
       }
 
@@ -156,10 +157,11 @@ export default function Configuracion() {
 
       setPasswordMessage({ type: "success", text: "Contraseña actualizada correctamente" })
       setPasswords({ current: "", new: "", confirm: "" })
-      setTimeout(() => setPasswordMessage(null), 2500)
+      setTimeout(() => setPasswordMessage(null), 3500)
     } catch (e) {
       const msg = "No se pudo cambiar la contraseña."
       setPasswordMessage({ type: "error", text: Array.isArray(msg) ? msg.join(" ") : msg })
+      setTimeout(() => setPasswordMessage(null), 3500)
     } finally {
       setIsLoadingPassword(false)
     }
@@ -237,7 +239,15 @@ export default function Configuracion() {
               </button>
               <p className="text-sm text-gray-500 mt-2">PNG o JPG hasta 5MB</p>
             </div>
-
+                        {message && (
+              <div
+                className={`mb-4 p-3 rounded-lg ${
+                  message.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+                }`}
+              >
+                {message.text}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Nombre</label>

@@ -188,7 +188,7 @@ export default function Configuracion() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold mb-6">Configuración</h1>
+      <h1 className="text-2xl font-bold mb-6">Configuración</h1>
 
       <AvatarPicker
         isOpen={isAvatarPickerOpen}

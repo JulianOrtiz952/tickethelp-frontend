@@ -75,7 +75,7 @@ export default function Configuracion() {
   const passwordsMatch = passwords.new && passwords.confirm && passwords.new === passwords.confirm
 
   useEffect(() => {
-    loadUserData("13492062") //El caremondá de Julián
+    loadUserData("10049888") //El caremondá de Julián
   }, [])
 
     const loadUserData = async (userDocument) => {

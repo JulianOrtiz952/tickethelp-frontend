@@ -3,7 +3,7 @@ import ConsultaUsuario from "../../components/ConsultaUsuario";
 import DatosCliente from "../../components/DatosCliente";
 import DatosEquipo from "../../components/DatosEquipo";
 
-export default function Tickets() {
+export default function GestionarTickets() {
   const [usuario, setUsuario] = useState(null);
   const [equipo, setEquipo] = useState({});
   const [mensaje, setMensaje] = useState("");

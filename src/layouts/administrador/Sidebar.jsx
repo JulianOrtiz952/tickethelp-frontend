@@ -1,6 +1,7 @@
 "use client"
 
 import { NavLink } from "react-router-dom"
+import { useState } from "react"
 
 const links = [
   {
@@ -31,6 +32,16 @@ const links = [
         />
       </svg>
     ),
+    submenu: [
+      {
+        to: "/admin/tickets/gestionar",
+        label: "Gestionar Ticket",
+      },
+      {
+        to: "/admin/tickets/visualizar",
+        label: "Visualizar Tickets",
+      },
+    ],
   },
   {
     to: "/admin/cambios",
@@ -78,6 +89,15 @@ const links = [
 ]
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
+  const [expandedMenus, setExpandedMenus] = useState({})
+
+  const toggleSubmenu = (label) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }))
+  }
+
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 bg-black/100 z-20 md:hidden" onClick={onMobileClose} />}
@@ -109,23 +129,89 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         <nav className={`px-4 space-y-1 ${mobileOpen ? "pt-4 md:pt-0" : "pb-4"}`}>
           {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              end={l.end}
-              onClick={() => onMobileClose()}
-              className={({ isActive }) =>
-                `flex items-center rounded-lg py-3 text-sm font-medium transition-all duration-300
-                 ${isActive ? "bg-[#1F5E89] text-white shadow-sm" : "text-gray-700 hover:bg-gray-200"}
-                 ${collapsed || mobileOpen ? "justify-center px-2 md:justify-center md:px-2" : "gap-3 px-4"}
-                 ${mobileOpen ? "md:gap-3 md:px-4" : ""}`
-              }
-              title={collapsed || mobileOpen ? l.label : undefined}
-            >
-              {l.icon}
-              {!collapsed && !mobileOpen && <span className="md:inline">{l.label}</span>}
-              {!collapsed && mobileOpen && <span className="hidden md:inline">{l.label}</span>}
-            </NavLink>
+            <div key={l.to}>
+              {l.submenu ? (
+                <>
+                  <button
+                    onClick={() => toggleSubmenu(l.label)}
+                    className={`w-full flex items-center rounded-lg py-3 text-sm font-medium transition-all duration-300 text-gray-700 hover:bg-gray-200
+                     ${collapsed || mobileOpen ? "justify-center px-2 md:justify-center md:px-2" : "gap-3 px-4"}
+                     ${mobileOpen ? "md:gap-3 md:px-4" : ""}
+                     ${expandedMenus[l.label] ? "bg-gray-200" : ""}`}
+                    title={collapsed || mobileOpen ? l.label : undefined}
+                  >
+                    {l.icon}
+                    {!collapsed && !mobileOpen && (
+                      <>
+                        <span className="md:inline flex-1 text-left">{l.label}</span>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${expandedMenus[l.label] ? "rotate-180" : ""}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </>
+                    )}
+                    {!collapsed && mobileOpen && (
+                      <>
+                        <span className="hidden md:inline flex-1 text-left">{l.label}</span>
+                        <svg
+                          className={`hidden md:block w-4 h-4 transition-transform ${
+                            expandedMenus[l.label] ? "rotate-180" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </>
+                    )}
+                  </button>
+
+                  {expandedMenus[l.label] && !collapsed && (
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-300 pl-4">
+                      {l.submenu.map((subItem) => (
+                        <NavLink
+                          key={subItem.to}
+                          to={subItem.to}
+                          onClick={() => onMobileClose()}
+                          className={({ isActive }) =>
+                            `flex items-center rounded-lg py-2 px-3 text-sm font-medium transition-all duration-300
+                             ${
+                               isActive
+                                 ? "bg-[#1F5E89] text-white shadow-sm"
+                                 : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+                             }`
+                          }
+                        >
+                          <span>{subItem.label}</span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <NavLink
+                  to={l.to}
+                  end={l.end}
+                  onClick={() => onMobileClose()}
+                  className={({ isActive }) =>
+                    `flex items-center rounded-lg py-3 text-sm font-medium transition-all duration-300
+                     ${isActive ? "bg-[#1F5E89] text-white shadow-sm" : "text-gray-700 hover:bg-gray-200"}
+                     ${collapsed || mobileOpen ? "justify-center px-2 md:justify-center md:px-2" : "gap-3 px-4"}
+                     ${mobileOpen ? "md:gap-3 md:px-4" : ""}`
+                  }
+                  title={collapsed || mobileOpen ? l.label : undefined}
+                >
+                  {l.icon}
+                  {!collapsed && !mobileOpen && <span className="md:inline">{l.label}</span>}
+                  {!collapsed && mobileOpen && <span className="hidden md:inline">{l.label}</span>}
+                </NavLink>
+              )}
+            </div>
           ))}
         </nav>
       </aside>

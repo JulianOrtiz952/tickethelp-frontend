@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLayout from "../layouts/administrador/AdminLayout";
 import Configuracion from "../pages/administrador/Configuracion";
-import Tickets from "../pages/administrador/Tickets";
+import GestionarTickets from "../pages/administrador/GestionarTickets";
+import VisualizarTickets from "../pages/administrador/VisualizarTickets"
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
 export default function AppRoutes() {
@@ -12,7 +13,9 @@ export default function AppRoutes() {
 
       {/* Rutas del administrador (anidadas en su layout) */}
       <Route path="/admin" element={<AdminLayout />}>
-        <Route path="tickets" element={<Tickets />} />
+        <Route path="tickets/gestionar" element={<GestionarTickets />} />
+        <Route path="tickets/visualizar" element={<VisualizarTickets />} />
+
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="usuarios" element={<UserPage />} />
         <Route path="usuarios/:document" element={<EditUserPage />} />

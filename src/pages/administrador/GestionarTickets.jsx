@@ -5,7 +5,7 @@ import DatosEquipo from "../../components/DatosEquipo";
 import ModalConfirmacion from "../../components/ModalConfirmacion";
 import { api } from "../../api/client";
 
-export default function Tickets() {
+export default function GestionarTickets() {
   const [usuario, setUsuario] = useState(null);
   const [equipo, setEquipo] = useState({});
   const [mensaje, setMensaje] = useState("");

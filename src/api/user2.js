@@ -40,7 +40,7 @@ export function validateNewUserPayload(payload) {
 }
 
 /** 📡 Endpoints base */
-const USERS = "/api/users/"; // doble barra para listado
+const USERS = "/api/users/";
 const USER_DETAIL = (document) => `/api/users/${encodeURIComponent(String(document))}/`;
 const USER_DEACTIVATE = (document) => `/api/users/${encodeURIComponent(String(document))}/deactivate/`;
 

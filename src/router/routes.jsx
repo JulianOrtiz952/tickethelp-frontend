@@ -3,7 +3,8 @@ import ProtectedRoute from "../pages/auth/ProtectedRoute";
 
 import AdminLayout from "../layouts/administrador/AdminLayout";
 import Configuracion from "../pages/administrador/Configuracion";
-import Tickets from "../pages/administrador/Tickets";
+import GestionarTickets from "../pages/administrador/GestionarTickets";
+import VisualizarTickets from "../pages/administrador/VisualizarTickets"
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
 
@@ -18,6 +19,7 @@ export default function AppRoutes() {
       {/* raíz -> login */}
       <Route path="/" element={<Navigate to="/auth/login" replace />} />
 
+<<<<<<< HEAD
       {/* Auth (no protegidas) */}
       <Route path="/auth">
         <Route path="login" element={<Login />} />
@@ -35,6 +37,16 @@ export default function AppRoutes() {
           <Route path="usuarios" element={<UserPage />} />
           <Route path="usuarios/:document" element={<EditUserPage />} />
         </Route>
+=======
+      {/* Rutas del administrador (anidadas en su layout) */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route path="tickets/gestionar" element={<GestionarTickets />} />
+        <Route path="tickets/visualizar" element={<VisualizarTickets />} />
+
+        <Route path="configuracion" element={<Configuracion />} />
+        <Route path="usuarios" element={<UserPage />} />
+        <Route path="usuarios/:document" element={<EditUserPage />} />
+>>>>>>> dd30e13f12791518c832e3906c2a501de9f1b5ec
       </Route>
 
       {/* 404 */}

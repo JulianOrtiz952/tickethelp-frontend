@@ -20,7 +20,16 @@ export default function ResetPassword() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
+        <div
+            className="min-h-screen flex items-center justify-center bg-cover bg-center"
+            style={{
+                backgroundImage: `
+          linear-gradient(135deg, rgba(160,225,245,0.6), rgba(255,255,255,0.6)),
+          url('/fondo.jpg')
+        `,
+                backgroundBlendMode: "overlay",
+            }}
+        >
             <div className="relative w-full max-w-md">
                 {/* Logo flotante */}
                 <div className="absolute -top-26 left-1/2 -translate-x-1/2 z-10">

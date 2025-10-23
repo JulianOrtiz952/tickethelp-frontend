@@ -1,4 +1,11 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_URL; // p.ej. https://tickethelp-backend.onrender.com
+
+const BASE_URL = "https:tickethelp-backend.onrender.com";
+
+const authHeaders = () => {
+  const token = localStorage.getItem("access")
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 
 export async function api(path, { method = "GET", headers = {}, body } = {}) {
   const ls = localStorage.getItem("access");

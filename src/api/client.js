@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_URL
+const BASE_URL = "https:tickethelp-backend.onrender.com";
 
 const authHeaders = () => {
   const token = localStorage.getItem("access")

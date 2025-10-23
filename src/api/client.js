@@ -1,3 +1,4 @@
+
 const BASE_URL = "https:tickethelp-backend.onrender.com";
 
 const authHeaders = () => {
@@ -5,23 +6,39 @@ const authHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+
 export async function api(path, { method = "GET", headers = {}, body } = {}) {
-  const init = { method, headers: { ...headers } };
+  const ls = localStorage.getItem("access");
+  const ss = sessionStorage.getItem("access");
+  const token = ss || ls;
+
+  const init = {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  };
 
   if (body !== undefined) {
     if (body instanceof FormData) {
-      // No pongas Content-Type manualmente
       init.body = body;
     } else {
-      init.headers["Content-Type"] = "application/json";
+      init.headers["Content-Type"] = init.headers["Content-Type"] || "application/json";
       init.body = typeof body === "string" ? body : JSON.stringify(body);
     }
   }
 
   const res = await fetch(`${BASE_URL}${path}`, init);
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { }
+
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
+    const err = new Error(data?.detail || res.statusText || "Error de API");
+    err.status = res.status;
+    err.data = data;
     throw err;
   }
-  return res.json().catch(() => ({}));
+  return data;
 }

@@ -7,8 +7,9 @@ import GestionarTickets from "../pages/administrador/GestionarTickets";
 import VisualizarTickets from "../pages/administrador/VisualizarTickets";
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
+import NotificationsPage from "../pages/notifications/NotificationsPage";
 
-// Auth pages (UI)
+// Auth pages
 import Login from "../pages/auth/Login";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
@@ -36,6 +37,7 @@ export default function AppRoutes() {
           <Route path="configuracion" element={<Configuracion />} />
           <Route path="usuarios" element={<UserPage />} />
           <Route path="usuarios/:document" element={<EditUserPage />} />
+          <Route path="notificaciones" element={<NotificationsPage />} />
         </Route>
       </Route>
 

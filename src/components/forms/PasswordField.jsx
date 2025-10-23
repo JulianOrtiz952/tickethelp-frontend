@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HiEye, HiEyeOff } from "react-icons/hi"; // 👈 íconos serios
+import { HiEye, HiEyeOff } from "react-icons/hi";
 
 export default function PasswordField({
     label = "Contraseña",

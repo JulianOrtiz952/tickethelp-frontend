@@ -1,23 +1,37 @@
-const BASE_URL = import.meta.env.VITE_BACKEND_URL; // e.g. https://tickethelp-backend.onrender.com/api
+const BASE_URL = import.meta.env.VITE_BACKEND_URL; // p.ej. https://tickethelp-backend.onrender.com
 
 export async function api(path, { method = "GET", headers = {}, body } = {}) {
-  const init = { method, headers: { ...headers } };
+  const ls = localStorage.getItem("access");
+  const ss = sessionStorage.getItem("access");
+  const token = ss || ls;
+
+  const init = {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  };
 
   if (body !== undefined) {
     if (body instanceof FormData) {
       init.body = body;
     } else {
-      init.headers["Content-Type"] = "application/json";
+      init.headers["Content-Type"] = init.headers["Content-Type"] || "application/json";
       init.body = typeof body === "string" ? body : JSON.stringify(body);
     }
   }
 
   const res = await fetch(`${BASE_URL}${path}`, init);
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    // propaga .status para que authService sepa si fue 404
-    throw { status: res.status, ...errBody };
-  }
-  return res.json().catch(() => ({}));
-}
+  const text = await res.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { }
 
+  if (!res.ok) {
+    const err = new Error(data?.detail || res.statusText || "Error de API");
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}

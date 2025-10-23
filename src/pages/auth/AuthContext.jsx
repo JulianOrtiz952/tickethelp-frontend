@@ -8,17 +8,29 @@ export function AuthProvider({ children }) {
     const [isAuthed, setIsAuthed] = useState(false);
     const [user, setUser] = useState(null);
 
+    function clearCreds() {
+        localStorage.removeItem("access");
+        localStorage.removeItem("refresh");
+        sessionStorage.removeItem("access");
+        sessionStorage.removeItem("refresh");
+    }
+
     useEffect(() => {
         (async () => {
             try {
-                const token = localStorage.getItem("access");
-                if (!token) { setLoading(false); return; }
-                await validateTokenApi();   // en demo devuelve {active:true}
-                const u = await meApi();    // en demo devuelve usuario ficticio
+                const token =
+                    sessionStorage.getItem("access") || localStorage.getItem("access");
+                if (!token) {
+                    setLoading(false);
+                    return;
+                }
+
+                await validateTokenApi();
+                const u = await meApi();
                 setUser(u);
                 setIsAuthed(true);
             } catch {
-                localStorage.removeItem("access");
+                clearCreds();
                 setIsAuthed(false);
                 setUser(null);
             } finally {
@@ -27,18 +39,37 @@ export function AuthProvider({ children }) {
         })();
     }, []);
 
-    async function login({ email, password /*, remember*/ }) {
-        const data = await loginApi({ email, password }); // real o demo si 404
+    async function login({ email, password, remember }) {
+        const data = await loginApi({ email, password });
+        const access = localStorage.getItem("access");
+
+        if (remember) {
+            // se queda en localStorage
+        } else {
+            // mover a sessionStorage
+            if (access) sessionStorage.setItem("access", access);
+            localStorage.removeItem("access");
+        }
+
         const u = await meApi();
         setUser(u);
         setIsAuthed(true);
-        return data;
+
+        const mustChange =
+            data?.must_change_password ?? u?.must_change_password ?? false;
+
+        return {
+            user: u,
+            token: access || sessionStorage.getItem("access") || null,
+            mustChange,
+        };
     }
 
     function logout() {
         logoutApi();
         setIsAuthed(false);
         setUser(null);
+        clearCreds();
     }
 
     return (

@@ -1,35 +1,98 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import TextField from "../../components/forms/TextField";
 import PasswordField from "../../components/forms/PasswordField";
 import { useAuth } from "./AuthContext";
 
 export default function Login() {
     const nav = useNavigate();
-    const { login } = useAuth();
+    const loc = useLocation();
+    const { loading, user, login } = useAuth();
+
+    // Ruta destino por defecto (solo admin por ahora)
+    const DEFAULT_HOME = "/admin/tickets/gestionar";
+
+    // Si venía desde una ruta protegida, vuelve ahí tras login
+    const from = loc.state?.from?.pathname || null;
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [remember, setRemember] = useState(false);
     const [error, setError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+
+    // Si ya hay sesión activa → redirige
+    useEffect(() => {
+        if (!loading && user?.role) {
+            nav(DEFAULT_HOME, { replace: true });
+        }
+    }, [loading, user, nav]);
+
+    // Validaciones cliente (campos vacíos / formato)
+    const emailError = useMemo(() => {
+        if (!email.trim()) return "Obligatorio";
+        const ok = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+        return ok ? "" : "Correo inválido";
+    }, [email]);
+
+    const passwordError = useMemo(() => {
+        if (!password.trim()) return "Obligatorio";
+        if (password.length < 8) return "Mínimo 8 caracteres";
+        return "";
+    }, [password]);
+
+    const formValid = !emailError && !passwordError;
 
     async function handleSubmit(e) {
         e.preventDefault();
-        if (!email.trim() || !password.trim()) {
-            setError("Ingresa tu email y contraseña.");
+
+        if (!formValid) {
+            setError("Corrige los errores del formulario.");
             return;
         }
+
         setError("");
+        setSubmitting(true);
+
         try {
-            await login({ email, password, remember });
-            nav("/admin/tickets");
+            const { user: loggedUser, mustChange } = await login({
+                email: email.trim(),
+                password,
+                remember,
+            });
+
+            if (mustChange) {
+                nav("/cambiar-contraseña", {
+                    replace: true,
+                    state: { firstTime: true, msg: "Por favor, cambie la contraseña" },
+                });
+                return;
+            }
+
+            // Redirige al destino original o al panel admin
+            const home = from || DEFAULT_HOME;
+            nav(home, { replace: true });
         } catch (err) {
-            const msg =
-                err?.detail ||
-                err?.message ||
-                err?.response?.data?.detail ||
-                "Credenciales inválidas";
-            setError(String(msg));
+            const status = err?.status;
+            if (status >= 500) {
+                setError("Error en el servidor. Intenta más tarde.");
+            } else if (
+                status === 403 &&
+                /inactiv/i.test(err?.data?.detail || err?.detail || "")
+            ) {
+                setError("Cuenta inactiva");
+            } else if (status === 401 || status === 400 || status === 404) {
+                setError("Credenciales inválidas");
+            } else {
+                setError(
+                    err?.data?.detail ||
+                    err?.detail ||
+                    err?.message ||
+                    "Error al iniciar sesión"
+                );
+            }
+        } finally {
+            setSubmitting(false);
         }
     }
 
@@ -55,12 +118,14 @@ export default function Login() {
                 </div>
 
                 <div className="bg-white border rounded-2xl shadow-sm px-6 pb-6 pt-14">
-                    <h1 className="text-center text-2xl font-semibold text-gray-800">Iniciar Sesión</h1>
+                    <h1 className="text-center text-2xl font-semibold text-gray-800">
+                        Iniciar Sesión
+                    </h1>
                     <p className="text-center text-sm text-gray-500 mt-1">
                         Ingresa tus credenciales para acceder
                     </p>
 
-                    <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                    <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
                         <TextField
                             label="Email"
                             name="email"
@@ -68,12 +133,14 @@ export default function Login() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             autoComplete="email"
+                            error={emailError || undefined}
                         />
                         <PasswordField
                             name="password"
                             autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            error={passwordError || undefined}
                         />
 
                         <div className="flex items-center justify-between text-sm">
@@ -86,7 +153,10 @@ export default function Login() {
                                 />
                                 <span className="text-gray-600">Recordarme</span>
                             </label>
-                            <Link to="/auth/forgot" className="text-[#1F5E89] hover:underline">
+                            <Link
+                                to="/auth/forgot"
+                                className="text-[#1F5E89] hover:underline"
+                            >
                                 ¿Olvidaste tu contraseña?
                             </Link>
                         </div>
@@ -99,10 +169,15 @@ export default function Login() {
 
                         <button
                             type="submit"
-                            className="w-full rounded-lg py-2.5 font-medium text-white"
+                            disabled={!formValid || submitting}
+                            className={`w-full rounded-lg py-2.5 font-medium text-white transition
+                ${!formValid || submitting
+                                    ? "opacity-60 cursor-not-allowed"
+                                    : "hover:opacity-90"
+                                }`}
                             style={{ backgroundColor: "#4494AD" }}
                         >
-                            Iniciar Sesión
+                            {submitting ? "Iniciando..." : "Iniciar Sesión"}
                         </button>
                     </form>
                 </div>

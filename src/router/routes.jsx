@@ -7,6 +7,8 @@ import GestionarTickets from "../pages/administrador/GestionarTickets";
 import VisualizarTickets from "../pages/administrador/VisualizarTickets";
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
+import TecnicoLayout from "../layouts/tecnico/TecnicoLayout"
+import TicketsAsignados from "../pages/tecnico/page"
 import NotificationsPage from "../pages/notifications/NotificationsPage";
 
 // Auth pages
@@ -39,6 +41,12 @@ export default function AppRoutes() {
           <Route path="usuarios/:document" element={<EditUserPage />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
         </Route>
+      </Route>
+
+      <Route path="/tecnico" element={<TecnicoLayout />}>
+        <Route index element={<Navigate to="tickets" replace />} />
+        <Route path="tickets" element={<TicketsAsignados />} />
+        <Route path="configuracion" element={<Configuracion />} />
       </Route>
 
       {/* 404 */}

@@ -11,8 +11,16 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import Pagination from "../../components/Pagination";
 import MessageDialog from "../../components/MessageDialog";
+
+/* ---------- Pequeño componente de banner ---------- */
+function InfoBanner({ children }) {
+    return (
+        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            {children}
+        </div>
+    );
+}
 
 /* ---------- Badges ---------- */
 function RoleBadge({ role }) {
@@ -25,14 +33,21 @@ function StateBadge({ active }) {
     return <span className={`px-2 py-1 rounded-full text-xs ${cls}`}>{label}</span>;
 }
 
-/* ---------- Validación (SIN password) ---------- */
+/* ---------- Validación (alineada al backend) ---------- */
 const schema = yup.object({
     document: yup.string().required("Documento requerido"),
-    number: yup.string().matches(/^\d{7,15}$/, "Solo dígitos (7 a 15)").required("Número requerido"),
+    // EXACTO: 10 dígitos y empieza por 3 (celular colombiano)
+    number: yup
+        .string()
+        .matches(/^3\d{9}$/, "Debe iniciar con 3 y tener 10 dígitos (ej: 3001234567)")
+        .required("Número requerido"),
     first_name: yup.string().required("Nombre requerido"),
     last_name: yup.string().required("Apellido requerido"),
     email: yup.string().email("Correo inválido").required("Correo requerido"),
-    role: yup.string().oneOf(["CLIENT", "ADMIN", "TECH"], "Rol inválido").required("Rol requerido"),
+    role: yup
+        .string()
+        .oneOf(["CLIENT", "ADMIN", "TECH"], "Rol inválido")
+        .required("Rol requerido"),
 });
 
 export default function UsersPage() {
@@ -47,17 +62,16 @@ export default function UsersPage() {
 
     const [msg, setMsg] = useState({ open: false, title: "", message: "", variant: "info" });
 
-    const [page, setPage] = useState(1);
-    const pageSize = 10;
-    const total = rows.length;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
     const {
         register,
         handleSubmit,
         reset,
+        setValue,
         formState: { errors, isSubmitting },
+        watch,
     } = useForm({ resolver: yupResolver(schema) });
+
+    const watchNumber = watch("number");
 
     /* ---------- Cargar lista inicial ---------- */
     useEffect(() => {
@@ -103,7 +117,6 @@ export default function UsersPage() {
             } else {
                 setRows([{ ...userRow, avatar: userRow.nombre?.slice(0, 1) || "U" }]);
             }
-            setPage(1);
         } catch {
             setRows([]);
             setError("Error al consultar el usuario. Intenta de nuevo.");
@@ -112,7 +125,7 @@ export default function UsersPage() {
         }
     }
 
-    /* ---------- Crear (SIN password) ---------- */
+    /* ---------- Crear (sin password; backend usa document como contraseña inicial) ---------- */
     async function handleCreate(data) {
         try {
             const payload = {
@@ -122,7 +135,6 @@ export default function UsersPage() {
                 role: String(data.role || "").toUpperCase().trim(),
                 first_name: String(data.first_name || "").trim(),
                 last_name: String(data.last_name || "").trim(),
-                // NO password: el backend asigna document como contraseña inicial
             };
 
             const res = await createUser(payload);
@@ -131,32 +143,23 @@ export default function UsersPage() {
                 open: true,
                 title: "Usuario creado",
                 message:
-                    res?.message || "Usuario creado exitosamente. La contraseña inicial es el documento.",
+                    res?.message ||
+                    "Usuario creado exitosamente. La contraseña inicial es el mismo número de documento.",
                 variant: "success",
             });
 
             setShowForm(false);
             reset();
 
-            if (documento.trim()) {
-                await buscar();
-            } else {
-                setLoading(true);
-                const list = await listUsers();
-                const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
-                setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
-                setLoading(false);
-            }
+            // Refrescar tabla
+            setLoading(true);
+            const list = await listUsers();
+            const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
+            setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
+            setLoading(false);
         } catch (err) {
-            if (err?.code === "VALIDATION_ERROR") {
-                setMsg({
-                    open: true,
-                    title: "Validación",
-                    message: "Error en los campos. Verifica los datos.",
-                    variant: "error",
-                });
-                return;
-            }
+            console.error("Create user error:", err);
+            // Capturar un mensaje amigable desde la respuesta del backend
             const dictMsg = (() => {
                 if (err && typeof err === "object") {
                     const keys = Object.keys(err).filter((k) => !["status", "url"].includes(k));
@@ -167,11 +170,15 @@ export default function UsersPage() {
                 }
                 return null;
             })();
+
             setMsg({
                 open: true,
-                title: "Error al crear",
+                title: "No se pudo crear",
                 message:
-                    dictMsg || err?.message || err?.detail || "Error al crear usuario. Intenta de nuevo.",
+                    dictMsg ||
+                    err?.detail ||
+                    err?.message ||
+                    "Revisa los datos: el celular debe iniciar con 3 y tener 10 dígitos; el documento y el correo no deben estar registrados.",
                 variant: "error",
             });
         }
@@ -209,7 +216,9 @@ export default function UsersPage() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-semibold">Gestión de Usuarios</h1>
-                    <p className="text-sm text-gray-600">Administra usuarios, roles y permisos del sistema</p>
+                    <p className="text-sm text-gray-600">
+                        Administra usuarios, roles y permisos del sistema
+                    </p>
                 </div>
 
                 {!showForm && (
@@ -237,6 +246,23 @@ export default function UsersPage() {
                             <p className="mt-1 text-sm text-gray-600">
                                 Complete la información para crear un nuevo usuario en el sistema
                             </p>
+
+                            {/* Banner explicativo para usuarios no técnicos */}
+                            <InfoBanner>
+                                <ul className="list-disc pl-5 space-y-1">
+                                    <li>
+                                        <b>Contraseña inicial:</b> será el <b>mismo número de documento</b> del usuario.
+                                        Después, podrá cambiarla en “Cambiar contraseña”.
+                                    </li>
+                                    <li>
+                                        <b>Celular:</b> debe iniciar con <b>3</b> y tener <b>10 dígitos</b> (ejemplo: <code>3001234567</code>).
+                                        No incluyas espacios, guiones ni el +57.
+                                    </li>
+                                    <li>
+                                        <b>Correo:</b> debe ser válido (ejemplo: <code>usuario@dominio.com</code>).
+                                    </li>
+                                </ul>
+                            </InfoBanner>
                         </div>
 
                         <form onSubmit={handleSubmit(handleCreate)} className="px-6 pb-6 mt-6">
@@ -312,7 +338,7 @@ export default function UsersPage() {
                                     </label>
                                     <input
                                         {...register("document")}
-                                        placeholder="Ingrese el número de documento"
+                                        placeholder="Ej: 1234567890"
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
@@ -320,7 +346,7 @@ export default function UsersPage() {
                                         <p className="mt-1 text-xs text-red-600">{errors.document.message}</p>
                                     )}
                                     <p className="mt-1 text-xs text-gray-500">
-                                        * La contraseña inicial será el <b>mismo número de documento</b>.
+                                        <b>Importante:</b> la contraseña inicial será este mismo número.
                                     </p>
                                 </div>
 
@@ -342,29 +368,43 @@ export default function UsersPage() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Número de Teléfono *
+                                        Número de Teléfono (celular) *
                                     </label>
                                     <input
-                                        {...register("number")}
-                                        placeholder="+57 300 123 4567"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
+                                        {...register("number", {
+                                            onChange: (e) => {
+                                                // limpiar espacios y no permitir caracteres que no sean dígitos
+                                                const digits = e.target.value.replace(/\D+/g, "");
+                                                setValue("number", digits, { shouldValidate: true });
+                                            },
+                                        })}
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        placeholder="3001234567"
+                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
+                                    {/* Ayuda para usuarios no técnicos */}
+                                    {!errors.number && watchNumber?.length > 0 && (
+                                        <p className="mt-1 text-xs text-emerald-700">
+                                            {/^3\d{9}$/.test(watchNumber)
+                                                ? "Formato válido ✔︎"
+                                                : "Recuerda: debe iniciar con 3 y tener 10 dígitos."}
+                                        </p>
+                                    )}
                                     {errors.number && (
                                         <p className="mt-1 text-xs text-red-600">{errors.number.message}</p>
                                     )}
                                 </div>
                             </div>
 
-                            <hr className="my-6 border-gray-200" />
-
-                            <div className="flex items-center justify-between">
+                            <div className="mt-6 flex items-center justify-between">
                                 <div className="flex gap-3">
                                     <button
                                         type="submit"
                                         disabled={isSubmitting}
                                         className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white
-                               hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
                                     >
                                         <span>＋</span> Crear Usuario
                                     </button>
@@ -454,7 +494,7 @@ export default function UsersPage() {
 
                         <div className="flex items-center justify-between p-4 text-sm text-gray-600">
                             <span>
-                                Mostrando {rows.length} de {total} {total === 1 ? "usuario" : "usuarios"}
+                                Mostrando {rows.length} usuario(s)
                             </span>
                         </div>
                     </div>

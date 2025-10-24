@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "../pages/auth/ProtectedRoute";
+import ProtectedRoute from "../pages/auth/ProtectedRoute"; // si lo usas en otras secciones
+import AdminRoute from "../pages/auth/AdminRoute";
+import TechRoute from "../pages/auth/TechRoute";
 
 import AdminLayout from "../layouts/administrador/AdminLayout";
 import Configuracion from "../pages/administrador/Configuracion";
@@ -7,8 +9,10 @@ import GestionarTickets from "../pages/administrador/GestionarTickets";
 import VisualizarTickets from "../pages/administrador/VisualizarTickets";
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
-import TecnicoLayout from "../layouts/tecnico/TecnicoLayout"
-import TicketsAsignados from "../pages/tecnico/page"
+
+import TecnicoLayout from "../layouts/tecnico/TecnicoLayout";
+import TicketsAsignados from "../pages/tecnico/page";
+
 import NotificationsPage from "../pages/notifications/NotificationsPage";
 
 // Auth pages
@@ -29,10 +33,9 @@ export default function AppRoutes() {
         <Route path="reset" element={<ResetPassword />} />
       </Route>
 
-      {/* Admin protegido */}
-      <Route element={<ProtectedRoute />}>
+      {/* Admin protegido POR ROL */}
+      <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
-          {/* portada del admin -> gestionar tickets */}
           <Route index element={<Navigate to="tickets/gestionar" replace />} />
           <Route path="tickets/gestionar" element={<GestionarTickets />} />
           <Route path="tickets/visualizar" element={<VisualizarTickets />} />
@@ -43,10 +46,14 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      <Route path="/tecnico" element={<TecnicoLayout />}>
-        <Route index element={<Navigate to="tickets" replace />} />
-        <Route path="tickets" element={<TicketsAsignados />} />
-        <Route path="configuracion" element={<Configuracion />} />
+      {/* Técnico protegido POR ROL */}
+      <Route element={<TechRoute />}>
+        <Route path="/tecnico" element={<TecnicoLayout />}>
+          <Route index element={<Navigate to="tickets" replace />} />
+          <Route path="tickets" element={<TicketsAsignados />} />
+          <Route path="configuracion" element={<Configuracion />} />
+          <Route path="notificaciones" element={<NotificationsPage />} />
+        </Route>
       </Route>
 
       {/* 404 */}

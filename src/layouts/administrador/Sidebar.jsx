@@ -72,6 +72,20 @@ const links = [
     ),
   },
   {
+    to: "/admin/notificaciones",
+    label: "Notificaciones",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+        />
+      </svg>
+    ),
+  },
+  {
     to: "/admin/configuracion",
     label: "Configuración",
     icon: (
@@ -112,9 +126,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         <div className="p-4 hidden md:block">
           <button
             onClick={onToggle}
-            className={`w-full text-left font-semibold text-gray-800 hover:text-[#1F5E89] transition-colors ${
-              collapsed ? "flex justify-center" : ""
-            }`}
+            className={`w-full text-left font-semibold text-gray-800 hover:text-[#1F5E89] transition-colors ${collapsed ? "flex justify-center" : ""
+              }`}
             aria-label={collapsed ? "Expandir menú" : "Contraer menú"}
           >
             {collapsed ? (
@@ -158,9 +171,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       <>
                         <span className="hidden md:inline flex-1 text-left">{l.label}</span>
                         <svg
-                          className={`hidden md:block w-4 h-4 transition-transform ${
-                            expandedMenus[l.label] ? "rotate-180" : ""
-                          }`}
+                          className={`hidden md:block w-4 h-4 transition-transform ${expandedMenus[l.label] ? "rotate-180" : ""
+                            }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -180,11 +192,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                           onClick={() => onMobileClose()}
                           className={({ isActive }) =>
                             `flex items-center rounded-lg py-2 px-3 text-sm font-medium transition-all duration-300
-                             ${
-                               isActive
-                                 ? "bg-[#1F5E89] text-white shadow-sm"
-                                 : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
-                             }`
+                             ${isActive
+                              ? "bg-[#1F5E89] text-white shadow-sm"
+                              : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+                            }`
                           }
                         >
                           <span>{subItem.label}</span>

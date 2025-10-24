@@ -25,7 +25,7 @@ function StateBadge({ active }) {
     return <span className={`px-2 py-1 rounded-full text-xs ${cls}`}>{label}</span>;
 }
 
-/* ---------- Validación ---------- */
+/* ---------- Validación (SIN password) ---------- */
 const schema = yup.object({
     document: yup.string().required("Documento requerido"),
     number: yup.string().matches(/^\d{7,15}$/, "Solo dígitos (7 a 15)").required("Número requerido"),
@@ -33,7 +33,6 @@ const schema = yup.object({
     last_name: yup.string().required("Apellido requerido"),
     email: yup.string().email("Correo inválido").required("Correo requerido"),
     role: yup.string().oneOf(["CLIENT", "ADMIN", "TECH"], "Rol inválido").required("Rol requerido"),
-    password: yup.string().min(8, "Mínimo 8 caracteres").required("Contraseña requerida"),
 });
 
 export default function UsersPage() {
@@ -67,7 +66,6 @@ export default function UsersPage() {
                 setLoading(true);
                 const list = await listUsers();
                 const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
-                // avatar
                 setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
                 setError("");
             } catch (err) {
@@ -83,7 +81,6 @@ export default function UsersPage() {
         e?.preventDefault?.();
         setError("");
         if (!documento.trim()) {
-            // si limpian el input, recarga todos
             try {
                 setLoading(true);
                 const list = await listUsers();
@@ -115,10 +112,9 @@ export default function UsersPage() {
         }
     }
 
-    /* ---------- Crear ---------- */
+    /* ---------- Crear (SIN password) ---------- */
     async function handleCreate(data) {
         try {
-            // Sanitiza antes de enviar
             const payload = {
                 document: String(data.document || "").trim(),
                 email: String(data.email || "").trim(),
@@ -126,25 +122,24 @@ export default function UsersPage() {
                 role: String(data.role || "").toUpperCase().trim(),
                 first_name: String(data.first_name || "").trim(),
                 last_name: String(data.last_name || "").trim(),
-                password: String(data.password || ""),
+                // NO password: el backend asigna document como contraseña inicial
             };
 
             const res = await createUser(payload);
 
-            // Modal éxito
             setMsg({
                 open: true,
                 title: "Usuario creado",
-                message: res?.message || "Usuario creado exitosamente.",
+                message:
+                    res?.message || "Usuario creado exitosamente. La contraseña inicial es el documento.",
                 variant: "success",
             });
 
             setShowForm(false);
             reset();
 
-            // Refrescar tabla
             if (documento.trim()) {
-                await buscar(); // respeta la búsqueda activa
+                await buscar();
             } else {
                 setLoading(true);
                 const list = await listUsers();
@@ -153,13 +148,13 @@ export default function UsersPage() {
                 setLoading(false);
             }
         } catch (err) {
-            // Normaliza mensajes del backend
-            if (err?.code === "EMAIL_DUPLICATE") {
-                setMsg({ open: true, title: "Correo duplicado", message: "correo ya registrado", variant: "error" });
-                return;
-            }
             if (err?.code === "VALIDATION_ERROR") {
-                setMsg({ open: true, title: "Validación", message: "Error en los campos. Verifica los datos.", variant: "error" });
+                setMsg({
+                    open: true,
+                    title: "Validación",
+                    message: "Error en los campos. Verifica los datos.",
+                    variant: "error",
+                });
                 return;
             }
             const dictMsg = (() => {
@@ -167,7 +162,7 @@ export default function UsersPage() {
                     const keys = Object.keys(err).filter((k) => !["status", "url"].includes(k));
                     if (keys.length) {
                         const v = err[keys[0]];
-                        return Array.isArray(v) ? v[0] : (typeof v === "string" ? v : null);
+                        return Array.isArray(v) ? v[0] : typeof v === "string" ? v : null;
                     }
                 }
                 return null;
@@ -175,13 +170,13 @@ export default function UsersPage() {
             setMsg({
                 open: true,
                 title: "Error al crear",
-                message: dictMsg || err?.message || err?.detail || "Error al crear usuario. Intenta de nuevo.",
+                message:
+                    dictMsg || err?.message || err?.detail || "Error al crear usuario. Intenta de nuevo.",
                 variant: "error",
             });
         }
     }
 
-    /* ---------- Desactivar (en vez de eliminar) ---------- */
     async function handleDeleteConfirmed() {
         if (!targetRow) return;
         try {
@@ -214,9 +209,7 @@ export default function UsersPage() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-semibold">Gestión de Usuarios</h1>
-                    <p className="text-sm text-gray-600">
-                        Administra usuarios, roles y permisos del sistema
-                    </p>
+                    <p className="text-sm text-gray-600">Administra usuarios, roles y permisos del sistema</p>
                 </div>
 
                 {!showForm && (
@@ -249,7 +242,9 @@ export default function UsersPage() {
                         <form onSubmit={handleSubmit(handleCreate)} className="px-6 pb-6 mt-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Usuario *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Tipo de Usuario *
+                                    </label>
                                     <select
                                         {...register("role")}
                                         defaultValue=""
@@ -261,33 +256,45 @@ export default function UsersPage() {
                                         <option value="TECH">Técnico</option>
                                         <option value="CLIENT">Cliente</option>
                                     </select>
-                                    {errors.role && <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>}
+                                    {errors.role && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Usuario *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Nombre *
+                                    </label>
                                     <input
                                         {...register("first_name")}
                                         placeholder="Ingrese el nombre"
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
-                                    {errors.first_name && <p className="mt-1 text-xs text-red-600">{errors.first_name.message}</p>}
+                                    {errors.first_name && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.first_name.message}</p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Apellido *
+                                    </label>
                                     <input
                                         {...register("last_name")}
                                         placeholder="Ingrese el apellido"
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
-                                    {errors.last_name && <p className="mt-1 text-xs text-red-600">{errors.last_name.message}</p>}
+                                    {errors.last_name && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.last_name.message}</p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Tipo de Documento *
+                                    </label>
                                     <select
                                         defaultValue=""
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
@@ -300,18 +307,27 @@ export default function UsersPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de Documento *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Número de Documento *
+                                    </label>
                                     <input
                                         {...register("document")}
                                         placeholder="Ingrese el número de documento"
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
-                                    {errors.document && <p className="mt-1 text-xs text-red-600">{errors.document.message}</p>}
+                                    {errors.document && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.document.message}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        * La contraseña inicial será el <b>mismo número de documento</b>.
+                                    </p>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Correo Electrónico *
+                                    </label>
                                     <input
                                         {...register("email")}
                                         type="email"
@@ -319,29 +335,24 @@ export default function UsersPage() {
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
-                                    {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+                                    {errors.email && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Número de Teléfono *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Número de Teléfono *
+                                    </label>
                                     <input
                                         {...register("number")}
                                         placeholder="+57 300 123 4567"
                                         className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
                                placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
-                                    {errors.number && <p className="mt-1 text-xs text-red-600">{errors.number.message}</p>}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-                                    <input
-                                        {...register("password")}
-                                        type="password"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    />
-                                    {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
+                                    {errors.number && (
+                                        <p className="mt-1 text-xs text-red-600">{errors.number.message}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -357,8 +368,6 @@ export default function UsersPage() {
                                     >
                                         <span>＋</span> Crear Usuario
                                     </button>
-
-
                                 </div>
 
                                 <button
@@ -406,14 +415,10 @@ export default function UsersPage() {
                                 </thead>
                                 <tbody>
                                     {loading && (
-                                        <tr>
-                                            <td className="p-4 text-center" colSpan={6}>Cargando...</td>
-                                        </tr>
+                                        <tr><td className="p-4 text-center" colSpan={6}>Cargando...</td></tr>
                                     )}
                                     {!loading && rows.length === 0 && (
-                                        <tr>
-                                            <td className="p-4 text-center" colSpan={6}>Sin resultados</td>
-                                        </tr>
+                                        <tr><td className="p-4 text-center" colSpan={6}>Sin resultados</td></tr>
                                     )}
                                     {rows.map((u) => (
                                         <tr key={u.id} className="border-t hover:bg-gray-50">
@@ -434,11 +439,7 @@ export default function UsersPage() {
                                                     title="Editar"
                                                     className="px-2 py-1 border rounded hover:bg-gray-50"
                                                     onClick={() => navigate(`/admin/usuarios/${u.document}`)}
-                                                >
-                                                    ✏️
-                                                </button>
-
-
+                                                >✏️</button>
                                                 <button
                                                     title="Desactivar"
                                                     className="px-2 py-1 border rounded hover:bg-gray-50"
@@ -455,7 +456,6 @@ export default function UsersPage() {
                             <span>
                                 Mostrando {rows.length} de {total} {total === 1 ? "usuario" : "usuarios"}
                             </span>
-
                         </div>
                     </div>
 

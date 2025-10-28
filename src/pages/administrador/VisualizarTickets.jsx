@@ -333,11 +333,10 @@ export default function VisualizarTickets() {
                         <button
                           key={tech.document}
                           onClick={() => setSelectedTechnicianId(tech.document)}
-                          className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${
-                            isSelected
+                          className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${isSelected
                               ? "border-teal-500 bg-teal-50"
                               : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">

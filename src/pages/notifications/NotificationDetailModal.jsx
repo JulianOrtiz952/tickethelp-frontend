@@ -1,20 +1,41 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { fetchNotificationDetail } from "../../api/notificationsService";
+
+const fullName = (u) =>
+    [u?.first_name, u?.last_name].filter(Boolean).join(" ") || u?.email || "—";
 
 export default function NotificationDetailModal({ notification, onClose }) {
     const [detail, setDetail] = useState(notification);
     const [loading, setLoading] = useState(false);
 
+    const fmt = useMemo(
+        () => new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }),
+        []
+    );
+
     useEffect(() => {
+        let active = true;
         (async () => {
             setLoading(true);
             try {
                 const d = await fetchNotificationDetail(notification.id);
-                setDetail(d);
-            } catch (_) { }
-            setLoading(false);
+                if (active) setDetail(d);
+            } catch {
+                /* si falla, mostramos lo que ya tenemos */
+            } finally {
+                if (active) setLoading(false);
+            }
         })();
+        return () => { active = false; };
     }, [notification.id]);
+
+    const fechaISO = detail?.fecha_creacion || detail?.fecha_envio;
+    const fecha = fechaISO ? fmt.format(new Date(fechaISO)) : "—";
+
+    const usuarioPrincipal =
+        (detail?.usuario && fullName(detail.usuario)) ||
+        (detail?.destinatarios?.[0] && fullName(detail.destinatarios[0])) ||
+        "—";
 
     return (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4">
@@ -30,31 +51,33 @@ export default function NotificationDetailModal({ notification, onClose }) {
                     ) : (
                         <>
                             <div className="mb-4">
-                                <div className="border rounded-xl p-3 bg-gray-50">{detail.mensaje ?? detail.message}</div>
+                                <div className="border rounded-xl p-3 bg-gray-50">
+                                    {detail?.mensaje || detail?.titulo || detail?.tipo_nombre || "—"}
+                                </div>
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4">
                                 <section className="rounded-xl border p-4 bg-blue-50">
                                     <h3 className="font-semibold mb-2 flex items-center gap-2">
-                                        <span>👤</span> Datos del Cliente
+                                        <span>👤</span> Datos del Usuario
                                     </h3>
-                                    <p><span className="text-gray-500">Nombre: </span>{detail.cliente_nombre ?? detail.usuario_nombre ?? "—"}</p>
-                                    <p><span className="text-gray-500">Documento: </span>{detail.cliente_documento ?? "—"}</p>
-                                    <p><span className="text-gray-500">Teléfono: </span>{detail.cliente_telefono ?? "—"}</p>
-                                    <p><span className="text-gray-500">Correo: </span>{detail.cliente_correo ?? "—"}</p>
+                                    <p><span className="text-gray-500">Nombre: </span>{usuarioPrincipal}</p>
+                                    <p><span className="text-gray-500">Correo: </span>{detail?.usuario?.email || "—"}</p>
+                                    <p><span className="text-gray-500">Fecha: </span>{fecha}</p>
                                 </section>
 
                                 <section className="rounded-xl border p-4 bg-purple-50">
                                     <h3 className="font-semibold mb-2 flex items-center gap-2">
-                                        <span>📌</span> Estado actual
+                                        <span>📌</span> Estado y Técnicos
                                     </h3>
-                                    <p><span className="text-gray-500">Estado: </span>{detail.estado_nombre ?? detail.estado ?? "—"}</p>
-                                    <p><span className="text-gray-500">Técnico asignado: </span>{detail.tecnico_nombre ?? "—"}</p>
-                                    <p><span className="text-gray-500">Actualización: </span>{new Date(detail.fecha_creacion ?? detail.created_at).toLocaleString()}</p>
+                                    <p><span className="text-gray-500">Estado: </span>{detail?.estado || "—"}</p>
+                                    <p><span className="text-gray-500">Tipo: </span>{detail?.tipo_nombre || detail?.tipo_codigo || "—"}</p>
+                                    <p><span className="text-gray-500">Técnico nuevo: </span>{detail?.new_technician_info?.nombre || "—"}</p>
+                                    <p><span className="text-gray-500">Técnico previo: </span>{detail?.old_technician_info?.nombre || "—"}</p>
                                 </section>
                             </div>
 
-                            {detail.meta?.link && (
+                            {detail?.meta?.link && (
                                 <a className="inline-flex mt-4 text-sky-700 underline" href={detail.meta.link}>
                                     Ir al ticket
                                 </a>

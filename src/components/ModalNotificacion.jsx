@@ -1,6 +1,8 @@
 // src/components/ModalNotificacion.jsx
 import React, { useEffect } from "react";
 
+
+
 export default function ModalNotificacion({
     open,
     onClose,

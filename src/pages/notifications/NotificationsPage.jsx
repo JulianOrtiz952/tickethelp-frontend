@@ -1,40 +1,41 @@
 import React, { useMemo, useState } from "react";
 import { useNotifications } from "../../hooks/useNotifications";
-import { useToast } from "../../components/ToastProvider";
 import NotificationDetailModal from "./NotificationDetailModal";
 
-export default function NotificationsPage() {
-    const { items, loading, error, reload, markRead, getDetail } = useNotifications();
-    const [selected, setSelected] = useState(null);
-    const toast = useToast();
+const fullName = (u) =>
+    [u?.first_name, u?.last_name].filter(Boolean).join(" ") || u?.email || "—";
 
-    // formateador de fecha como en la maqueta
+// En tu backend, "leída" se marca con LEIDA.
+// Añadimos alternativas por si llega como número/código.
+const isRead = (estado) =>
+    estado === "LEIDA" || estado === "READ" || estado === 3;
+
+export default function NotificationsPage() {
+    const { items, loading, error, reload, markRead, get } = useNotifications();
+    const [selected, setSelected] = useState(null);
+
     const fmt = useMemo(
-        () =>
-            new Intl.DateTimeFormat("es-ES", {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }),
+        () => new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeStyle: "short" }),
         []
     );
 
     const openDetail = async (n) => {
         try {
-            // marca leída si aún no lo está
-            if (!n.es_leida) {
+            if (!isRead(n.estado)) {
                 await markRead(n.id);
-                // actualiza la lista silenciosamente; evita parpadeo
-                reload();
+                reload(); // refresca la lista silenciosamente
             }
-
-            // si tu hook expone getDetail, úsalo; si no, abre con el propio item
+            // intenta traer el detalle (usa tu hook.get -> fetchNotificationDetail)
             let detail = n;
-            if (typeof getDetail === "function") {
-                detail = await getDetail(n.id);
+            try {
+                detail = await get(n.id);
+            } catch {
+                /* si falla, mostramos el item base */
             }
             setSelected(detail);
         } catch {
-            toast.push({ title: "No se pudo abrir el detalle", type: "error" });
+            // opcional: podrías mostrar un toast si tienes provider
+            // console.error("No se pudo abrir el detalle");
         }
     };
 
@@ -84,16 +85,22 @@ export default function NotificationsPage() {
                         {!loading &&
                             !error &&
                             items.map((n) => {
+                                // DESTINATARIO: usa `usuario` o el primer `destinatarios`
                                 const destinatario =
-                                    n.usuario_nombre ??
-                                    n.usuario?.full_name ??
-                                    n.destinatario_label ??
+                                    (n.usuario && fullName(n.usuario)) ||
+                                    (Array.isArray(n.destinatarios) &&
+                                        n.destinatarios[0] &&
+                                        fullName(n.destinatarios[0])) ||
                                     "—";
 
-                                const mensaje = n.titulo ?? n.title ?? n.message ?? "—";
-                                const fecha = fmt.format(
-                                    new Date(n.fecha_creacion ?? n.created_at)
-                                );
+                                // MENSAJE: `mensaje` ó `titulo` ó nombre del tipo
+                                const mensaje = n.mensaje || n.titulo || n.tipo_nombre || "—";
+
+                                // FECHA: `fecha_creacion` (ó `fecha_envio`)
+                                const fechaISO = n.fecha_creacion || n.fecha_envio;
+                                const fecha = fechaISO ? fmt.format(new Date(fechaISO)) : "—";
+
+                                const unread = !isRead(n.estado);
 
                                 return (
                                     <tr
@@ -112,7 +119,7 @@ export default function NotificationsPage() {
                                     >
                                         <td className="py-4 px-4">
                                             <div className="flex items-center gap-2">
-                                                {!n.es_leida && (
+                                                {unread && (
                                                     <span
                                                         className="inline-block h-2 w-2 rounded-full bg-sky-600"
                                                         aria-label="no leída"

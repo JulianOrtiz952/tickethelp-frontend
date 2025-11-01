@@ -1,9 +1,14 @@
 // src/hooks/useNotifications.js
 import { useCallback, useEffect, useState } from "react";
-import { fetchNotifications, fetchUserNotifications, fetchNotificationDetail, markNotificationAsRead, fetchNotificationStats } from "../api/notificationsService";
+import {
+    fetchNotifications,           // ← usa este: filtra por request.user en tu backend
+    fetchNotificationDetail,
+    markNotificationAsRead,
+    fetchNotificationStats,
+} from "../api/notificationsService";
 import { useAuth } from "../pages/auth/AuthContext";
 
-export function useNotifications({ unauthParams } = {}) {
+export function useNotifications() {
     const { user } = useAuth();
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -14,38 +19,35 @@ export function useNotifications({ unauthParams } = {}) {
         setLoading(true);
         setError(null);
         try {
-            if (unauthParams) {
-                const data = await fetchUserNotifications({ ...unauthParams, ...filters });
-                const list = data.notifications ?? data;
-                setItems(list);
-            } else {
-                // 1) intento normal (requiere auth)
-                let data;
-                try {
-                    data = await fetchNotifications(filters);
-                } catch (e) {
-                    // 2) fallback si 400 + tienes user: llama /user-notifications/?user_id=...
-                    const status = e?.response?.status || e?.status;
-                    if (status === 400 && user?.id) {
-                        data = await fetchUserNotifications({ user_id: user.id, ...filters });
-                    } else {
-                        throw e;
-                    }
-                }
-                const list = data.notifications ?? data;
-                setItems(list);
-                try { setStats(await fetchNotificationStats()); } catch { }
+            // ⚠️ Requiere estar autenticado (el backend usa request.user)
+            if (!user) {
+                setItems([]);
+                return;
+            }
+
+            // GET /notifications?{filters}
+            const data = await fetchNotifications(filters);
+            const list = data.notifications ?? data; // por si tu service envía { notifications: [...] }
+            setItems(list);
+
+            try {
+                const s = await fetchNotificationStats();
+                setStats(s);
+            } catch {
+                /* silencioso */
             }
         } catch (e) {
             setError(e);
         } finally {
             setLoading(false);
         }
-    }, [unauthParams, user?.id]);
+    }, [user]);
 
-    const get = useCallback((id) => fetchNotificationDetail(id, unauthParams || {}), [unauthParams]);
-    const markRead = useCallback((id) => markNotificationAsRead(id, unauthParams || {}), [unauthParams]);
+    // detalle y marcar como leída NO necesitan cambios
+    const get = useCallback((id) => fetchNotificationDetail(id), []);
+    const markRead = useCallback((id) => markNotificationAsRead(id), []);
 
     useEffect(() => { load(); }, [load]);
+
     return { items, loading, error, stats, reload: load, get, markRead };
 }

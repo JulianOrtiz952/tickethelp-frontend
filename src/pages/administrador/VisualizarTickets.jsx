@@ -6,6 +6,10 @@ import { Progress } from "../../components/tickets/visualizar_tickets/Progress"
 import { Input } from "../../components/tickets/visualizar_tickets/Input"
 import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X } from "lucide-react"
 import { ticketService } from "../../api/ticketService"
+import ModalNotificacion from "../../components/ModalNotificacion"
+
+
+
 
 const ESTADO_CONFIG = {
   1: {
@@ -46,6 +50,9 @@ export default function VisualizarTickets() {
   const [selectedTechnicianId, setSelectedTechnicianId] = useState(null)
   const [isChangingTechnician, setIsChangingTechnician] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifTitle, setNotifTitle] = useState("")
+  const [notifMessage, setNotifMessage] = useState("")
 
   useEffect(() => {
     fetchTickets()
@@ -121,8 +128,19 @@ export default function VisualizarTickets() {
 
     try {
       await ticketService.changeTechnician(selectedTicket.id, selectedTechnicianId)
-      fetchTickets()
+      await fetchTickets()
+
+      // Cierra el modal de reasignación
       setIsModalOpen(false)
+
+      // Prepara y muestra la notificación
+      setNotifTitle("Técnico reasignado correctamente")
+      setNotifMessage(
+        `El ticket ${formatTicketNumber(selectedTicket)} fue asignado a ${getTechnicianName(selectedTechnicianId)}.`
+      )
+      setNotifOpen(true)
+
+      // Limpieza de selección
       setSelectedTicket(null)
       setSelectedTechnicianId(null)
     } catch (error) {
@@ -140,6 +158,7 @@ export default function VisualizarTickets() {
       setIsChangingTechnician(false)
     }
   }
+
 
   const formatTicketNumber = (ticket) => {
     const year = new Date(ticket.creado_en).getFullYear()
@@ -333,11 +352,10 @@ export default function VisualizarTickets() {
                         <button
                           key={tech.document}
                           onClick={() => setSelectedTechnicianId(tech.document)}
-                          className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${
-                            isSelected
-                              ? "border-teal-500 bg-teal-50"
-                              : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
-                          }`}
+                          className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${isSelected
+                            ? "border-teal-500 bg-teal-50"
+                            : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -478,6 +496,15 @@ export default function VisualizarTickets() {
           </div>
         </div>
       </DialogSlide>
+      <ModalNotificacion
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        title={notifTitle}
+        message={notifMessage}
+        autoCloseMs={3500}
+        position="top-right"
+      />
+
     </div>
   )
 }

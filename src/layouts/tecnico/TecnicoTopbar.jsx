@@ -1,178 +1,114 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, LogOut } from "lucide-react";
 import { useAuth } from "../../pages/auth/AuthContext";
 
-export default function TecnicoTopbar({ onMenuClick }) {
+// Fallback: lee el payload del JWT para sacar id/email/nombre cuando el contexto no los trae
+function readJwtPayload() {
+  try {
+    const token =
+      sessionStorage.getItem("access") || localStorage.getItem("access");
+    if (!token) return {};
+    const [, b64] = token.split(".");
+    if (!b64) return {};
+    return JSON.parse(atob(b64));
+  } catch {
+    return {};
+  }
+}
+
+function computeDisplay(user) {
+  const p = readJwtPayload();
+  console.log(user)
+  const first = user?.user.first_name || p?.first_name || p?.given_name || user?.username || p?.username || "";
+  const last = user?.last_name || p?.last_name || p?.family_name || "";
+  const name =
+    (first || last) ? `${first} ${last}`.trim()
+    : user?.first_name || p?.first_name
+    || user?.email || p?.email
+    || "Usuario";
+
+  const role = user?.role || p?.role || "USER";
+
+  // Prioridad avatar: backend -> dicebear estable con document/email -> ícono fallback
+  const seed =
+    user?.document || user?.documento || user?.email || p?.document || p?.email || "ticket-help";
+  const picture =
+    user?.user.profile_picture
+      || `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(seed)}&size=128`;
+
+  return { name, role, picture };
+}
+
+export default function Topbar({ onMobileMenuToggle }) {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-
-  // --- Notificaciones de ejemplo (sustituye por tu fetch/socket) ---
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: "Ticket #124 asignado", desc: "Nuevo ticket para ti", read: false, ts: "hace 2m" },
-    { id: 2, title: "Comentario en Ticket #117", desc: "Revisar actualización", read: true, ts: "hace 1h" },
-  ]);
-  const unread = notifications.filter(n => !n.read).length;
-
-  // --- Popover ---
-  const [open, setOpen] = useState(false);
-  const popRef = useRef(null);
-
-  useEffect(() => {
-    function onDocClick(e) {
-      if (!popRef.current) return;
-      if (!popRef.current.contains(e.target)) setOpen(false);
-    }
-    function onEsc(e) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, []);
-
-  function markAllAsRead() {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  }
+  const { name, role, picture } = computeDisplay(user);
 
   function handleLogout() {
-    logout();           // limpia sesión + tokens
-    nav("/auth/login"); // redirige al login
+    logout();
+    nav("/auth/login");
   }
 
   return (
-    <header className="bg-[#2B6CB0] text-white h-14 flex items-center justify-between px-6 sticky top-0 z-50 shadow-md">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="md:hidden w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"
-          aria-label="Abrir menú"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-
-        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
-        </div>
-        <h1 className="text-lg font-semibold">Ticket-Help</h1>
-      </div>
-
-      <div className="flex items-center gap-4" ref={popRef}>
-        {/* 🔔 Notificaciones */}
-        <div className="relative">
+    <header className="sticky top-0 z-40 bg-[#1F5E89] text-white shadow-md">
+      <div className="flex items-center justify-between px-6 py-3">
+        {/* Izquierda: menú + marca */}
+        <div className="flex items-center gap-3">
           <button
-            className="relative hover:bg-white/10 p-2 rounded-lg transition-colors"
-            aria-haspopup="menu"
-            aria-expanded={open}
-            onClick={() => setOpen(v => !v)}
+            onClick={onMobileMenuToggle}
+            className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Abrir menú"
           >
-            <Bell className="w-5 h-5" />
-            {unread > 0 && (
-              <span
-                className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-[10px] leading-[18px]
-                           text-white rounded-full text-center"
-              >
-                {unread}
-              </span>
-            )}
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
           </button>
 
-          {/* Popover */}
-          {open && (
-            <div
-              role="menu"
-              className="absolute right-0 mt-2 w-80 bg-white text-gray-800 rounded-lg shadow-lg ring-1 ring-black/5 overflow-hidden"
-            >
-              <div className="flex items-center justify-between px-3 py-2 border-b">
-                <span className="text-sm font-semibold">Notificaciones</span>
-                <button
-                  onClick={markAllAsRead}
-                  className="text-xs px-2 py-1 rounded hover:bg-gray-100"
-                >
-                  Marcar todas como leídas
-                </button>
-              </div>
+          <img src="/logo_ticket-help.svg" alt="Ticket-Help Logo" className="w-10 h-10" />
+          <span className="text-xl font-semibold">Ticket-Help</span>
+        </div>
 
-              <ul className="max-h-80 overflow-auto">
-                {notifications.length === 0 ? (
-                  <li className="px-4 py-6 text-sm text-gray-500">Sin notificaciones</li>
-                ) : (
-                  notifications.map(n => (
-                    <li
-                      key={n.id}
-                      className={`px-4 py-3 text-sm border-b last:border-b-0 ${n.read ? "bg-white" : "bg-blue-50"
-                        }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="font-medium">{n.title}</div>
-                          <div className="text-gray-600">{n.desc}</div>
-                          <div className="text-[11px] text-gray-400 mt-1">{n.ts}</div>
-                        </div>
-                        {!n.read && (
-                          <button
-                            onClick={() =>
-                              setNotifications(prev =>
-                                prev.map(x => (x.id === n.id ? { ...x, read: true } : x))
-                              )
-                            }
-                            className="text-[11px] px-2 py-1 rounded hover:bg-gray-100"
-                          >
-                            Marcar leído
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))
-                )}
-              </ul>
+        {/* Derecha: notificaciones + usuario + logout */}
+        <div className="flex items-center gap-4">
+          {/* Notificaciones */}
+          <button className="relative p-2 hover:bg-white/10 rounded-full transition-colors" aria-label="Notificaciones">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+          </button>
 
-              <div className="px-3 py-2 bg-gray-50 text-right">
-                <button
-                  onClick={() => {
-                    setOpen(false);
-                    // Llevar al listado de notificaciones del técnico
-                    nav("/tecnico/notificaciones");
-                  }}
-                  className="text-xs font-medium text-[#2B6CB0] hover:underline"
-                >
-                  Ver todo
-                </button>
-              </div>
+          {/* Usuario */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center overflow-hidden ring-2 ring-white/20">
+              {/* Si `picture` es URL, úsala; si falla la carga, quedará el fondo */}
+              <img
+                src={picture}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
             </div>
-          )}
-        </div>
-
-        {/* 👤 Usuario */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium">
-              {user?.first_name?.[0]?.toUpperCase() || "T"}
-            </span>
+            <div className="hidden md:block text-sm">
+              <div className="font-medium leading-tight">{name}</div>
+              <div className="text-xs text-gray-200">{role}</div>
+            </div>
           </div>
-          <span className="text-sm font-medium">
-            {user?.first_name ? `${user.first_name} ${user.last_name || ""}` : "Técnico"}
-          </span>
-        </div>
 
-        {/* 🚪 Cerrar sesión */}
-        <button
-          onClick={handleLogout}
-          className="hover:bg-white/10 p-2 rounded-lg transition-colors"
-          aria-label="Cerrar sesión"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            aria-label="Cerrar sesión"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
   );

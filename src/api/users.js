@@ -1,56 +1,39 @@
-// API functions para gestión de usuarios
+import { api } from "./client";
 
-import { api } from "./client"
-
-// Lista de avatares disponibles para asignar aleatoriamente
-export const AVATAR_SEEDS = [
-    "Emery",
-    "Sophia",
-    "Riley",
-    "Nolan",
-    "Brian",
-    "Jocelyn",
-    "Andrea",
-    "George",
-]
-
-export async function listUsers() {
-  return api("/api/users/")
-}
-
+/** Obtiene por documento*/
 export async function getUserByDocument(document) {
-  const list = await listUsers()
-  const user = Array.isArray(list) ? list.find((u) => String(u.document) === String(document)) : null
-  return user
+  return api(`/api/users/${encodeURIComponent(String(document))}/`, { method: "GET" });
 }
 
+/**  ACTUALIZA por documento — usa PATCH */
 export async function updateMe(document, payload) {
-  return api(`/api/me/${encodeURIComponent(document)}`, {
-    method: "PUT",
-    body: payload,
-  })
+  const doc = String(document || "").trim();
+  if (!doc) throw new Error("Documento requerido para actualizar el perfil");
+
+  return api(
+    `/api/users/update-user/${encodeURIComponent(doc)}/`,
+    { method: "PATCH", body: payload }
+  );
 }
 
+/** Cambiar password  */
 export async function changePassword(document, body) {
-  return api(`/api/me/change-password/${encodeURIComponent(document)}/`, {
+  const doc = String(document || "").trim();
+  if (!doc) throw new Error("Documento requerido para cambiar contraseña");
+  return api(`/api/users/${encodeURIComponent(doc)}/change-password/`, {
     method: "POST",
     body,
-  })
-}
-
-export async function updateProfilePicture(document, avatarSeed) {
-  // Usa PNG para evitar bloqueos por SVG en algunos validadores
-  const url = `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(
-    avatarSeed
-  )}&size=256`;
-
-  // El endpoint espera JSON y método PUT/PATCH
-  return api(`/api/users/update-profile-picture/${encodeURIComponent(document)}/`, {
-    method: "PUT",
-    body: { profile_picture: url }, // <-- JSON, no FormData
   });
 }
 
-export async function createUser(payload) {
-  return api("/api/users/", { method: "POST", body: payload })
+/** Foto de perfil  */
+export async function updateProfilePicture(document, avatarSeed) {
+  const doc = String(document || "").trim();
+  if (!doc) throw new Error("Documento requerido");
+  if (!avatarSeed) throw new Error("Seed de avatar requerida");
+  const url = `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(avatarSeed)}&size=256`;
+  return api(`/api/users/update-profile-picture/${encodeURIComponent(doc)}/`, {
+    method: "PUT",
+    body: { profile_picture: url },
+  });
 }

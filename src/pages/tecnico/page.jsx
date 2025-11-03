@@ -1,198 +1,231 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Plus } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import { Plus, CircleAlert, Search, Wrench, FlaskConical, CheckCircle } from "lucide-react";
+import { useAuth } from "../auth/AuthContext";     
+import { api } from "../../api/client";       
 
-export default function TicketsAsignados() {
-  const [tickets, setTickets] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+// ---------------- UI de estados (igual a admin) ----------------
+const ESTADO_CONFIG = {
+  1: { label: "Abierto",        color: "bg-red-100 text-red-800",     icon: CircleAlert },
+  2: { label: "En diagnóstico", color: "bg-orange-100 text-orange-800", icon: Search },
+  3: { label: "En reparación",  color: "bg-yellow-100 text-yellow-800", icon: Wrench },
+  4: { label: "En pruebas",     color: "bg-blue-100 text-blue-800",   icon: FlaskConical },
+  5: { label: "Finalizado",     color: "bg-green-100 text-green-800", icon: CheckCircle },
+};
+
+// Si el backend manda el estado como string/objeto, normalizamos aquí.
+const NAME_TO_ID = {
+  "abierto": 1,
+  "en diagnóstico": 2,
+  "en diagnostico": 2,
+  "en reparación": 3,
+  "en reparacion": 3,
+  "en pruebas": 4,
+  "finalizado": 5,
+};
+
+function resolveEstadoId(ticket) {
+  const e = ticket?.estado;
+  if (typeof e === "number") return e;
+  if (e?.id) return e.id;
+  if (e?.nombre) {
+    const id = NAME_TO_ID[e.nombre.toLowerCase()];
+    return id ?? 1;
+  }
+  if (typeof e === "string") {
+    const id = NAME_TO_ID[e.toLowerCase()];
+    return id ?? 1;
+  }
+  return 1;
+}
+
+function formatTicketNumber(ticket) {
+  const year = new Date(ticket.creado_en || ticket.fecha).getFullYear();
+  const paddedId = String(ticket.id).padStart(3, "0");
+  return `#TK-${year}-${paddedId}`;
+}
+
+function formatDate(d) {
+  const date = new Date(d);
+  return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function readJwtPayload() {
+  try {
+    const token = sessionStorage.getItem("access") || localStorage.getItem("access");
+    if (!token) return {};
+    const [, b64] = token.split(".");
+    if (!b64) return {};
+    return JSON.parse(atob(b64));
+  } catch {
+    return {};
+  }
+}
+
+export default function TicketsTecnicoPage() {
+  const { user, isAuthed } = useAuth();
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Identificador del técnico (documento → id → email), combinando contexto + JWT
+  const techIdentifier = useMemo(() => {
+    const p = readJwtPayload();
+    const document =
+      user?.document || user?.documento || user?.cedula || user?.profile?.documento ||
+      p?.document || p?.documento || null;
+
+    const id =
+      user?.id || user?.user_id || user?.pk ||
+      p?.user_id || p?.id || p?.pk || null;
+
+    const email = user?.email || p?.email || null;
+    return { document, id, email };
+  }, [user]);
 
   useEffect(() => {
-    fetchTickets()
-  }, [])
-
-  const fetchTickets = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const endpoint = "https://tickethelp-backend.onrender.com/api/tickets/consulta/?user_document=10049888"
-
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 segundos de timeout
-
-      const response = await fetch(endpoint, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-
-      if (data && Array.isArray(data.tickets)) {
-        setTickets(data.tickets)
-      } else {
-        setTickets([])
-      }
-    } catch (err) {
-      let errorMessage = "Error desconocido"
-      if (err instanceof Error) {
-        if (err.name === "AbortError") {
-          errorMessage = "La solicitud tardó demasiado. El servidor puede estar lento."
-        } else if (err.message.includes("Failed to fetch")) {
-          errorMessage = "No se pudo conectar al servidor. Verifica tu conexión."
-        } else {
-          errorMessage = err.message
-        }
-      }
-
-      setError(errorMessage)
-      setTickets([])
-    } finally {
-      setLoading(false)
+    if (!isAuthed) {
+      setError("No hay usuario autenticado.");
+      setLoading(false);
+      return;
     }
-  }
+    fetchTickets().catch((e) => {
+      console.error("[TicketsTecnico] error:", e);
+      setError(e?.message || "Error al cargar tickets");
+      setLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthed, techIdentifier?.id, techIdentifier?.document, techIdentifier?.email]);
 
-  const getEstadoColor = (estado) => {
-    const colores = {
-      1: "bg-red-100 text-red-800 border border-red-200", // Abierto
-      2: "bg-yellow-100 text-yellow-800 border border-yellow-200", // En progreso
-      3: "bg-blue-100 text-blue-800 border border-blue-200", // Pendiente
-      4: "bg-green-100 text-green-800 border border-green-200", // Cerrado
+  async function fetchTickets() {
+    setLoading(true);
+    setError("");
+
+    const qs = new URLSearchParams();
+    if (techIdentifier.document) {
+      qs.set("user_document", techIdentifier.document); 
+    } else if (techIdentifier.id) {
+      qs.set("assigned_to", techIdentifier.id);         
+    } else if (techIdentifier.email) {
+      qs.set("email", techIdentifier.email);
+    } else {
+      throw new Error("No se encontró un identificador del técnico (documento, id o email).");
     }
-    return colores[estado] || "bg-gray-100 text-gray-800 border border-gray-200"
-  }
 
-  const getEstadoNombre = (estado) => {
-    const nombres = {
-      1: "Abierto",
-      2: "En Progreso",
-      3: "Pendiente",
-      4: "Cerrado",
-    }
-    return nombres[estado] || "Sin estado"
-  }
+    const data = await api(`/api/tickets/consulta/?${qs.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
 
-  const formatearFecha = (fecha) => {
-    const date = new Date(fecha)
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
+    setTickets(Array.isArray(data) ? data : (data?.results || data?.tickets || []));
+    setLoading(false);
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        <div className="text-gray-500">Cargando tickets...</div>
       </div>
-    )
+    );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-red-800">
-        <p className="font-semibold text-lg">Error al cargar los tickets</p>
-        <p className="text-sm mt-2">{error}</p>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+        <p className="font-medium">Error al cargar los tickets</p>
+        <p className="text-sm mt-1">{error}</p>
         <button
-          onClick={fetchTickets}
-          className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          onClick={() => fetchTickets()}
+          className="mt-3 px-3 py-1.5 rounded-md text-white"
+          style={{ backgroundColor: "#4494AD" }}
         >
           Reintentar
         </button>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Visualizar Tickets</h1>
-        </div>
-        <div className="text-sm text-gray-600">
-          Total: <span className="font-semibold">{tickets.length} tickets</span>
-        </div>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Visualizar Tickets</h1>
+        <div className="text-sm text-gray-500">Total: {tickets.length} tickets</div>
       </div>
 
-      {tickets.length === 0 ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-          <p className="text-gray-500 text-lg">No tienes tickets asignados</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {tickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-bold text-gray-900">#TK-2025-{ticket.id.toString().padStart(3, "0")}</h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEstadoColor(ticket.estado)}`}>
-                    {getEstadoNombre(ticket.estado)}
-                  </span>
-                </div>
-                <span className="text-sm text-gray-500">Creado: {formatearFecha(ticket.creado_en)}</span>
-              </div>
+      <div className="space-y-4 sm:space-y-6 max-w-6xl">
+        {tickets.map((ticket) => {
+          const estadoId = resolveEstadoId(ticket);
+          const estadoCfg = ESTADO_CONFIG[estadoId] || ESTADO_CONFIG[1];
+          const EstadoIcon = estadoCfg.icon;
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Información del Ticket</h4>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs text-gray-500">Título:</p>
-                      <p className="text-sm font-medium text-gray-900">{ticket.titulo}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Descripción:</p>
-                      <p className="text-sm text-gray-700">{ticket.descripcion || "Sin descripción"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500">Equipo:</p>
-                      <p className="text-sm text-gray-700">{ticket.equipo || "No especificado"}</p>
-                    </div>
+          return (
+            <div key={ticket.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              {/* Encabezado: número, estado, fecha */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4 sm:mb-6">
+                <div className="flex-1">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+                    {formatTicketNumber(ticket)}
+                  </h2>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                    <span
+                      className={`inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${estadoCfg.color}`}
+                    >
+                      <EstadoIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                      {estadoCfg.label}
+                    </span>
+                    {(ticket.creado_en || ticket.fecha) && (
+                      <span className="text-gray-600 text-xs sm:text-sm">
+                        Creado: {formatDate(ticket.creado_en || ticket.fecha)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Técnico Asignado</h4>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold">
-                      {ticket.tecnico?.charAt(0) || "T"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Técnico #{ticket.tecnico}</p>
-                      <p className="text-xs text-gray-500">Técnico</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-xs text-green-600">Disponible</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex justify-end">
-                <button className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium">
+                {/* Acción del técnico (sin foto) */}
+                <button
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  
+                >
                   <Plus className="w-4 h-4" />
-                  Gestionar técnico
+                  Abrir ticket
                 </button>
               </div>
+
+              {/* Contenido: Información del Ticket (igual a admin) */}
+              <div className="grid grid-cols-1">
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Información del Ticket</h3>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Título:</span>
+                      <p className="font-medium text-gray-800 text-sm sm:text-base">
+                        {ticket.titulo || "—"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Descripción:</span>
+                      <p className="text-gray-800 text-sm sm:text-base">
+                        {ticket.descripcion || "—"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Equipo:</span>
+                      <p className="font-medium text-gray-800 text-sm sm:text-base">
+                        {ticket.equipo || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* En la vista del técnico NO mostramos "Técnico asignado" ni avatar */}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
-  )
+  );
 }

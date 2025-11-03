@@ -1,30 +1,36 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, CircleAlert, Search, Wrench, FlaskConical, CheckCircle } from "lucide-react";
-import { useAuth } from "../auth/AuthContext";     
-import { api } from "../../api/client";       
+import {
+  CircleAlert, Search, Wrench, FlaskConical, CheckCircle,
+  ChevronDown, Loader2, Plus
+} from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
+import { api } from "../../api/client";
 
-// ---------------- UI de estados (igual a admin) ----------------
+// ------------------------- Config de estados -------------------------
 const ESTADO_CONFIG = {
-  1: { label: "Abierto",        color: "bg-red-100 text-red-800",     icon: CircleAlert },
+  1: { label: "Abierto",        color: "bg-red-100 text-red-800",      icon: CircleAlert },
   2: { label: "En diagnóstico", color: "bg-orange-100 text-orange-800", icon: Search },
   3: { label: "En reparación",  color: "bg-yellow-100 text-yellow-800", icon: Wrench },
-  4: { label: "En pruebas",     color: "bg-blue-100 text-blue-800",   icon: FlaskConical },
-  5: { label: "Finalizado",     color: "bg-green-100 text-green-800", icon: CheckCircle },
+  4: { label: "Pruebas",        color: "bg-blue-100 text-blue-800",    icon: FlaskConical },
+  // 5 existe pero está inactivo en tu BD; lo dejamos por si llega desde el backend:
+  5: { label: "Finalizado",     color: "bg-green-100 text-green-800",  icon: CheckCircle },
 };
 
-// Si el backend manda el estado como string/objeto, normalizamos aquí.
+// Normalizador por nombre → id (por si backend manda string)
 const NAME_TO_ID = {
   "abierto": 1,
-  "en diagnóstico": 2,
-  "en diagnostico": 2,
-  "en reparación": 3,
-  "en reparacion": 3,
-  "en pruebas": 4,
+  "en diagnóstico": 2, "en diagnostico": 2,
+  "en reparación": 3,  "en reparacion": 3,
+  "pruebas": 4,
   "finalizado": 5,
 };
 
+// Orden/flujo activo para el técnico (sin saltos ni aprobaciones)
+const ACTIVE_STATES = [1, 2, 3, 4];
+
+// ------------------------- Helpers -------------------------
 function resolveEstadoId(ticket) {
   const e = ticket?.estado;
   if (typeof e === "number") return e;
@@ -40,15 +46,25 @@ function resolveEstadoId(ticket) {
   return 1;
 }
 
+function nextStateFrom(currentId) {
+  const idx = ACTIVE_STATES.indexOf(currentId);
+  return ACTIVE_STATES[idx + 1] ?? null; // null si ya no hay siguiente
+}
+
 function formatTicketNumber(ticket) {
-  const year = new Date(ticket.creado_en || ticket.fecha).getFullYear();
-  const paddedId = String(ticket.id).padStart(3, "0");
+  const date = new Date(ticket.creado_en || ticket.fecha || Date.now());
+  const year = date.getFullYear();
+  const paddedId = String(ticket.id ?? "").padStart(3, "0");
   return `#TK-${year}-${paddedId}`;
 }
 
 function formatDate(d) {
-  const date = new Date(d);
-  return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+  try {
+    const date = new Date(d);
+    return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return "—";
+  }
 }
 
 function readJwtPayload() {
@@ -63,13 +79,38 @@ function readJwtPayload() {
   }
 }
 
+// ------------------------- Modal simple -------------------------
+function Modal({ open, onClose, children, title }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ------------------------- Página del técnico -------------------------
 export default function TicketsTecnicoPage() {
   const { user, isAuthed } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Identificador del técnico (documento → id → email), combinando contexto + JWT
+  // Modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTicket, setModalTicket] = useState(null);
+  const [toState, setToState] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [serverMsg, setServerMsg] = useState("");
+
+  // Identificadores del técnico para querystring
   const techIdentifier = useMemo(() => {
     const p = readJwtPayload();
     const document =
@@ -104,9 +145,9 @@ export default function TicketsTecnicoPage() {
 
     const qs = new URLSearchParams();
     if (techIdentifier.document) {
-      qs.set("user_document", techIdentifier.document); 
+      qs.set("user_document", techIdentifier.document);
     } else if (techIdentifier.id) {
-      qs.set("assigned_to", techIdentifier.id);         
+      qs.set("assigned_to", techIdentifier.id);
     } else if (techIdentifier.email) {
       qs.set("email", techIdentifier.email);
     } else {
@@ -120,6 +161,58 @@ export default function TicketsTecnicoPage() {
 
     setTickets(Array.isArray(data) ? data : (data?.results || data?.tickets || []));
     setLoading(false);
+  }
+
+  function openChangeState(ticket) {
+    const currentId = resolveEstadoId(ticket);
+    const ns = nextStateFrom(currentId);
+    if (!ns) return; // no hay siguiente → no abrimos modal
+    setModalTicket(ticket);
+    setToState(ns);
+    setServerMsg("");
+    setModalOpen(true);
+  }
+
+  async function submitChangeState() {
+    if (!modalTicket || !toState) return;
+    setSaving(true);
+    setServerMsg("");
+
+    // Querystring para prod/local (tu api() ya resuelve la base)
+    const qs = new URLSearchParams();
+    if (techIdentifier.document) {
+      qs.set("user_document", techIdentifier.document);
+    } else if (techIdentifier.id) {
+      qs.set("assigned_to", techIdentifier.id);
+    } else if (techIdentifier.email) {
+      qs.set("email", techIdentifier.email);
+    }
+    const path = `/api/tickets/change-state/${modalTicket.id}/?${qs.toString()}`;
+
+    try {
+      const res = await api(path, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ to_state: toState }), // sin "reason"
+      });
+
+      // Actualizamos UI pase lo que pase si no hay error:
+      const nuevoNombre = ESTADO_CONFIG[toState]?.label || "—";
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === modalTicket.id
+            ? { ...t, estado: { ...(t.estado || {}), id: toState, nombre: nuevoNombre } }
+            : t
+        )
+      );
+      setServerMsg(res?.message || "Estado actualizado correctamente");
+      setModalOpen(false);
+    } catch (e) {
+      console.error("[change-state] error:", e);
+      setServerMsg(e?.message || "No fue posible cambiar el estado.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -158,10 +251,12 @@ export default function TicketsTecnicoPage() {
           const estadoId = resolveEstadoId(ticket);
           const estadoCfg = ESTADO_CONFIG[estadoId] || ESTADO_CONFIG[1];
           const EstadoIcon = estadoCfg.icon;
+          const nextState = nextStateFrom(estadoId);
+          const canAdvance = !!nextState;
 
           return (
             <div key={ticket.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-              {/* Encabezado: número, estado, fecha */}
+              {/* Encabezado */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4 sm:mb-6">
                 <div className="flex-1">
                   <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
@@ -182,17 +277,24 @@ export default function TicketsTecnicoPage() {
                   </div>
                 </div>
 
-                {/* Acción del técnico (sin foto) */}
-                <button
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  
-                >
-                  <Plus className="w-4 h-4" />
-                  Abrir ticket
-                </button>
+                {/* Acciones del técnico */}
+                <div className="flex gap-2">
+                  <button
+                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      canAdvance
+                        ? "bg-teal-600 hover:bg-teal-700 text-white"
+                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    }`}
+                    onClick={() => canAdvance && openChangeState(ticket)}
+                    disabled={!canAdvance}
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                    Cambiar estado
+                  </button>
+                </div>
               </div>
 
-              {/* Contenido: Información del Ticket (igual a admin) */}
+              {/* Info */}
               <div className="grid grid-cols-1">
                 <div>
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Información del Ticket</h3>
@@ -219,13 +321,58 @@ export default function TicketsTecnicoPage() {
                     </div>
                   </div>
                 </div>
-
-                {/* En la vista del técnico NO mostramos "Técnico asignado" ni avatar */}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Modal: muestra ÚNICAMENTE el siguiente estado */}
+      <Modal
+        open={modalOpen}
+        onClose={() => !saving && setModalOpen(false)}
+        title={modalTicket ? `Cambiar estado de ${formatTicketNumber(modalTicket)}` : "Cambiar estado"}
+      >
+        {!!modalTicket && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Nuevo estado</label>
+              <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
+                {ESTADO_CONFIG[toState]?.label ?? "—"}
+              </div>
+            </div>
+
+            {serverMsg && (
+              <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-2">
+                {serverMsg}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-lg text-sm border"
+                onClick={() => setModalOpen(false)}
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg text-sm text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-60"
+                onClick={submitChangeState}
+                disabled={saving || !toState}
+              >
+                {saving ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Guardando…
+                  </span>
+                ) : (
+                  "Confirmar"
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

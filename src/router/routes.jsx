@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import ProtectedRoute from "../pages/auth/ProtectedRoute"; // si lo usas en otras secciones
 import AdminRoute from "../pages/auth/AdminRoute";
 import TechRoute from "../pages/auth/TechRoute";
 
@@ -52,7 +51,6 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="tickets" replace />} />
           <Route path="tickets" element={<TicketsAsignados />} />
           <Route path="configuracion" element={<Configuracion />} />
-          <Route path="notificaciones" element={<NotificationsPage />} />
         </Route>
       </Route>
 

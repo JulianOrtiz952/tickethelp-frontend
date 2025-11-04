@@ -8,6 +8,7 @@ import GestionarTickets from "../pages/administrador/GestionarTickets";
 import VisualizarTickets from "../pages/administrador/VisualizarTickets";
 import UserPage from "../pages/administrador/UserPage";
 import EditUserPage from "../pages/administrador/EditUserPage";
+import Reportes from "../pages/administrador/Reportes"
 
 import TecnicoLayout from "../layouts/tecnico/TecnicoLayout";
 import TicketsAsignados from "../pages/tecnico/page";
@@ -42,6 +43,7 @@ export default function AppRoutes() {
           <Route path="usuarios" element={<UserPage />} />
           <Route path="usuarios/:document" element={<EditUserPage />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
+          <Route path="reportes" element={<Reportes />} />
         </Route>
       </Route>
 
@@ -51,6 +53,7 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="tickets" replace />} />
           <Route path="tickets" element={<TicketsAsignados />} />
           <Route path="configuracion" element={<Configuracion />} />
+          <Route path="notificaciones" element={<NotificationsPage/>} />
         </Route>
       </Route>
 

@@ -1,9 +1,22 @@
+"use client";
+
 import { useState } from "react";
-import { FaSearch } from 'react-icons/fa';
+import { FaSearch } from "react-icons/fa";
+import { api } from "../api/client"; // ajusta la ruta si tu api está en otra carpeta
 
 export default function ConsultaUsuario({ onUsuarioEncontrado }) {
   const [numero, setNumero] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const getAccessToken = () => {
+    // soporta ambos almacenamientos
+    return (
+      sessionStorage.getItem("access") ||
+      localStorage.getItem("access") ||
+      ""
+    );
+  };
 
   const manejarBusqueda = async () => {
     if (!numero.trim()) {
@@ -12,22 +25,55 @@ export default function ConsultaUsuario({ onUsuarioEncontrado }) {
       return;
     }
 
-    try {
-      const response = await fetch(
-        `https://tickethelp-backend.onrender.com/api/clients/${numero}/`
-      );
-      const data = await response.json();
+    setLoading(true);
+    setError("");
 
-      if (response.ok && data.success) {
-        onUsuarioEncontrado(data.data);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        setError("Sesión expirada. Inicia sesión nuevamente.");
+        onUsuarioEncontrado(null);
+        setLoading(false);
+        return;
+      }
+
+      // Usa tu wrapper api() para heredar baseURL y manejo de errores
+      const data = await api(`/api/clients/${numero}/`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Soporta ambos formatos de respuesta (antes/ahora)
+      // 1) { success: true, data: {...} }
+      // 2) {...usuario}
+      const usuario =
+        (data?.success && data?.data) || (data?.document ? data : null);
+
+      if (usuario) {
+        onUsuarioEncontrado(usuario);
         setError("");
       } else {
         onUsuarioEncontrado(null);
-        setError(data.message || "Cliente no encontrado");
+        setError(data?.message || "Cliente no encontrado");
       }
     } catch (err) {
+      // Detección de 401/403/Network
+      const msg = `${err?.message || ""}`.toLowerCase();
+      if (msg.includes("401") || msg.includes("unauthorized")) {
+        setError("No autorizado. Inicia sesión nuevamente.");
+      } else if (msg.includes("cors")) {
+        setError("Error de conexión (CORS).");
+      } else if (msg.includes("failed to fetch")) {
+        setError("No se pudo conectar con el servidor.");
+      } else {
+        setError("Error al consultar el cliente.");
+      }
       onUsuarioEncontrado(null);
-      setError("Error de conexión con el servidor");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +82,7 @@ export default function ConsultaUsuario({ onUsuarioEncontrado }) {
       <h2 className="flex items-center text-lg font-bold text-gray-800 mb-4">
         <FaSearch className="text-blue-600 mr-2" size={18} />
         Consulta el usuario <span className="text-red-500">*</span>
-      </h2> 
+      </h2>
       <p className="text-gray-600 mb-2 text-sm">
         Ingrese el número de identificación del usuario
       </p>
@@ -62,9 +108,12 @@ export default function ConsultaUsuario({ onUsuarioEncontrado }) {
 
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 rounded-lg hover:bg-blue-700"
+          disabled={loading}
+          className={`px-4 rounded-lg text-white ${
+            loading ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Buscar
+          {loading ? "Buscando..." : "Buscar"}
         </button>
       </form>
 

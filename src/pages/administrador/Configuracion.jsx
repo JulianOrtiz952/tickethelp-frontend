@@ -3,12 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import Card from "../../components/Card";
 import AvatarPicker from "../../components/AvatarPicker";
-import { getUserByDocument, updateMe, changePassword, updateProfilePicture } from "../../api/users";
-import { useAuth } from "../auth/AuthContext"; 
+import {
+  getUserByDocument,
+  updateMe,
+  changePassword,
+  updateProfilePicture,
+  getSelf,
+} from "../../api/users";
+import { useAuth } from "../auth/AuthContext";
 
 const AVATAR_SEEDS = ["Emery", "Sophia", "Riley", "Nolan", "Brian", "Jocelyn", "Andrea", "George"];
 
-// Fallback para leer el payload del JWT si el contexto no trae todo
+// Lee payload del JWT por si el contexto no trae todo
 function readJwtPayload() {
   try {
     const token = sessionStorage.getItem("access") || localStorage.getItem("access");
@@ -37,7 +43,7 @@ function validatePasswordStrength(password) {
 }
 
 export default function Configuracion() {
-  const { user, isAuthed } = useAuth(); // ⬅️ autenticación actual
+  const { user, isAuthed } = useAuth();
 
   const [document, setDocument] = useState("");
   const [email, setEmail] = useState("");
@@ -63,18 +69,29 @@ export default function Configuracion() {
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
   const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
 
-  const passwordStrength = useMemo(() => (passwords.new ? validatePasswordStrength(passwords.new) : null), [passwords.new]);
+  const passwordStrength = useMemo(
+    () => (passwords.new ? validatePasswordStrength(passwords.new) : null),
+    [passwords.new]
+  );
   const passwordsMatch = passwords.new && passwords.confirm && passwords.new === passwords.confirm;
 
-  // Identificador del usuario logueado (prioridad: documento → id → email)
+  // Identidad actual (document, email y rol desde contexto/JWT)
   const currentIdentity = useMemo(() => {
     const p = readJwtPayload();
     const document =
-      user?.document || user?.documento || user?.cedula || user?.profile?.documento ||
-      p?.document || p?.documento || p?.cedula || null;
+      user?.document ||
+      user?.documento ||
+      user?.cedula ||
+      user?.profile?.documento ||
+      p?.document ||
+      p?.documento ||
+      p?.cedula ||
+      null;
     const id = user?.id || user?.user_id || p?.user_id || p?.id || null;
     const email = user?.email || p?.email || null;
-    return { document, id, email, jwt: p };
+    const role =
+      user?.role || p?.role || (p?.is_staff ? "ADMIN" : p?.is_superuser ? "ADMIN" : "TECH"); // heurística
+    return { document, id, email, role, jwt: p };
   }, [user]);
 
   useEffect(() => {
@@ -82,25 +99,29 @@ export default function Configuracion() {
       setMessage({ type: "error", text: "No hay sesión activa." });
       return;
     }
-    // Cargar los datos del usuario actual
-    (async function () {
+
+    (async function load() {
       try {
         setIsLoading(true);
         setMessage(null);
 
-        // ⚠️ La API de este módulo trabaja por DOCUMENTO (getUserByDocument/updateMe/changePassword, etc.)
-        // Si por alguna razón no tenemos documento, mostramos un error.
-        const docToUse = currentIdentity.document;
-        if (!docToUse) {
+        const docToUse = currentIdentity.document || "";
+        const roleToUse = currentIdentity.role || "";
+        const isAdmin = roleToUse === "ADMIN";
+
+        // Si no hay documento y somos ADMIN (ruta por documento), avisamos.
+        if (isAdmin && !docToUse) {
           setMessage({
             type: "error",
             text:
-              "No se encontró el documento del usuario. Verifica que el endpoint /me o el JWT incluyan 'document'/'documento'.",
+              "No se encontró el documento del usuario. Verifica que el JWT o /auth/user-data incluyan 'document'.",
           });
           return;
         }
 
-        const data = await getUserByDocument(docToUse);
+        // ADMIN -> /users/{document} | TECH/CLIENT -> /auth/user-data
+        const raw = isAdmin ? await getUserByDocument(docToUse) : await getSelf();
+        const data = raw?.user ?? raw;
 
         setDocument(data.document || docToUse);
         setEmail(data.email || currentIdentity.email || "");
@@ -111,19 +132,22 @@ export default function Configuracion() {
         setNombre(data.first_name || "");
         setApellido(data.last_name || "");
 
-        // Foto de perfil: si no existe, generamos una de Dicebear y la persistimos
+        // Avatar (si no hay, se genera seed y se intenta guardar; si falla por permisos, se ignora)
         if (data.profile_picture) {
           setAvatarUrl(data.profile_picture);
         } else {
           const randomSeed = AVATAR_SEEDS[Math.floor(Math.random() * AVATAR_SEEDS.length)];
           setAvatarSeed(randomSeed);
+          setAvatarUrl(
+            `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(
+              randomSeed
+            )}&size=256`
+          );
           try {
-            await updateProfilePicture(docToUse, randomSeed);
-            setAvatarUrl(
-              `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(randomSeed)}&size=256`
-            );
+            // Solo intenta persistir si eres ADMIN; con TECH puede dar 403.
+            if (isAdmin) await updateProfilePicture(data.document || docToUse, randomSeed);
           } catch (e) {
-            console.error("Error al guardar avatar aleatorio:", e);
+            console.warn("No se pudo guardar avatar (permiso insuficiente). Seguimos con vista previa.");
           }
         }
       } catch (err) {
@@ -133,21 +157,26 @@ export default function Configuracion() {
         setIsLoading(false);
       }
     })();
-  }, [isAuthed, currentIdentity.document]); // recarga si cambia el documento
+  }, [isAuthed, currentIdentity.document, currentIdentity.role]);
 
   const handleUpdateProfile = async () => {
     try {
       setIsLoading(true);
       setMessage(null);
+      if (!document) throw new Error("No hay documento para actualizar.");
+
       await updateMe(document, {
         first_name: nombre,
         last_name: apellido,
         number: phone,
       });
+
       setMessage({ type: "success", text: "Información actualizada correctamente" });
       setTimeout(() => setMessage(null), 3500);
     } catch (e) {
-      const msg = e?.detail || (typeof e === "object" ? Object.values(e).flat().join(" | ") : "Error al actualizar.");
+      const msg =
+        e?.detail ||
+        (typeof e === "object" ? Object.values(e).flat().join(" | ") : "Error al actualizar.");
       setMessage({ type: "error", text: msg });
     } finally {
       setIsLoading(false);
@@ -168,6 +197,7 @@ export default function Configuracion() {
         setTimeout(() => setPasswordMessage(null), 3500);
         return;
       }
+      if (!document) throw new Error("No hay documento del usuario.");
 
       await changePassword(document, {
         current_password: passwords.current,
@@ -186,11 +216,14 @@ export default function Configuracion() {
     }
   };
 
-  const toggleNotification = (key) => setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
-  const togglePasswordVisibility = (field) => setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
+  const toggleNotification = (key) =>
+    setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
+  const togglePasswordVisibility = (field) =>
+    setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
 
   const handleSelectAvatar = async (seed) => {
     try {
+      // Si TECH no tiene permiso para persistir, esto puede fallar; ya lo manejamos
       await updateProfilePicture(document, seed);
       setAvatarSeed(seed);
       setAvatarUrl(
@@ -200,7 +233,15 @@ export default function Configuracion() {
       setTimeout(() => setMessage(null), 2500);
     } catch (error) {
       console.error("Error al actualizar el avatar:", error);
-      setMessage({ type: "error", text: "Error al actualizar el avatar." });
+      setAvatarSeed(seed);
+      setAvatarUrl(
+        `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(seed)}&size=256`
+      );
+      setMessage({
+        type: "error",
+        text: "No se pudo guardar el avatar en el servidor (permiso).",
+      });
+      setTimeout(() => setMessage(null), 2500);
     }
   };
 
@@ -223,7 +264,9 @@ export default function Configuracion() {
               <img
                 src={
                   avatarUrl ||
-                  `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(avatarSeed)}&size=256`
+                  `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(
+                    avatarSeed
+                  )}&size=256`
                 }
                 alt="Avatar"
                 className="w-24 h-24 rounded-full mb-4"
@@ -281,7 +324,12 @@ export default function Configuracion() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Documento</label>
-                <input type="text" value={document} className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50" readOnly />
+                <input
+                  type="text"
+                  value={document}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
               </div>
 
               <div>
@@ -298,12 +346,22 @@ export default function Configuracion() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Correo electrónico</label>
-                <input type="email" value={email} className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50" readOnly />
+                <input
+                  type="email"
+                  value={email}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Rol</label>
-                <input type="text" value={role} className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50" readOnly />
+                <input
+                  type="text"
+                  value={role}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
               </div>
 
               <div className="pt-2">
@@ -334,7 +392,6 @@ export default function Configuracion() {
         <div className="h-full flex flex-col gap-6">
           <Card title="Preferencias">
             <div className="space-y-6">
-              {/* Tema */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Tema del sitio</label>
                 <div className="space-y-2">
@@ -349,7 +406,6 @@ export default function Configuracion() {
                 </div>
               </div>
 
-              {/* Notificaciones */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Notificaciones</label>
                 <div className="space-y-3">
@@ -393,7 +449,6 @@ export default function Configuracion() {
               )}
 
               <div className="space-y-4">
-                {/* Actual */}
                 <div>
                   <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-2">
                     Contraseña actual
@@ -413,14 +468,12 @@ export default function Configuracion() {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     >
                       {showPassword.current ? (
-                        // ojo
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round"
                                 d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
                         </svg>
                       ) : (
-                        // ojo tachado
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                           <path strokeLinecap="round" strokeLinejoin="round"
@@ -432,7 +485,6 @@ export default function Configuracion() {
                   </div>
                 </div>
 
-                {/* Nueva */}
                 <div>
                   <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-2">
                     Nueva contraseña
@@ -451,7 +503,6 @@ export default function Configuracion() {
                       onClick={() => togglePasswordVisibility("new")}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     >
-                      {/* mismo toggle de iconos que arriba */}
                       {showPassword.new ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -498,7 +549,6 @@ export default function Configuracion() {
                   )}
                 </div>
 
-                {/* Confirmar */}
                 <div>
                   <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-2">
                     Confirmar nueva contraseña
@@ -516,7 +566,6 @@ export default function Configuracion() {
                       onClick={() => togglePasswordVisibility("confirm")}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                     >
-                      {/* mismos iconos */}
                       {showPassword.confirm ? (
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">

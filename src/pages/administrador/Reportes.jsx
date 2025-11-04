@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { TrendingUp, Users, ClipboardList, Activity } from "lucide-react"
+import { TrendingUp, Users, ClipboardList, Activity, Clock } from "lucide-react"
 import { api } from "../../api/client"
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts"
 
@@ -10,6 +10,7 @@ export default function Reportes() {
   const [ranking, setRanking] = useState([])
   const [clientsEvolution, setClientsEvolution] = useState(null)
   const [heatmapData, setHeatmapData] = useState(null)
+  const [avgResolutionTime, setAvgResolutionTime] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [year] = useState(new Date().getFullYear())
@@ -24,11 +25,12 @@ export default function Reportes() {
       setLoading(true)
       setError("")
 
-      const [statsRes, rankRes, clientsRes, heatmapRes] = await Promise.all([
+      const [statsRes, rankRes, clientsRes, heatmapRes, avgResTimeRes] = await Promise.all([
         api("/api/reports/stats/general-stats/"),
         api("/api/reports/stats/performance-ranking/"),
         api(`/api/reports/stats/clients-evolution/?year=${year}`),
         api(`/api/reports/stats/activity-heatmap/?year=${year}&month=${month}`),
+        api("/api/reports/stats/avg-resolution-time/"),
       ])
 
       setGeneralStats(statsRes)
@@ -39,6 +41,8 @@ export default function Reportes() {
       console.log("[v0] Clients Evolution:", clientsRes)
       setHeatmapData(heatmapRes)
       console.log("[v0] Heatmap Data:", heatmapRes)
+      setAvgResolutionTime(avgResTimeRes)
+      console.log("[v0] Avg Resolution Time:", avgResTimeRes)
     } catch (e) {
       console.error("[v0] Error cargando reportes:", e)
       setError("Error al cargar los reportes. Intenta nuevamente.")
@@ -81,7 +85,7 @@ export default function Reportes() {
       </div>
 
       {/* ---------- Estadísticas generales ---------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           icon={<ClipboardList className="w-6 h-6 text-teal-600" />}
           title="Tickets Abiertos"
@@ -109,6 +113,17 @@ export default function Reportes() {
               : "0%"
           }
           color="bg-indigo-50 text-indigo-700"
+        />
+        <StatCard
+          icon={<Clock className="w-6 h-6 text-purple-600" />}
+          title="Tiempo Promedio"
+          value={avgResolutionTime ? `${avgResolutionTime.promedio_dias.toFixed(1)} días` : "N/A"}
+          subtitle={
+            avgResolutionTime
+              ? `${avgResolutionTime.promedio_horas.toFixed(1)}h • ${avgResolutionTime.tickets_contemplados} tickets`
+              : null
+          }
+          color="bg-purple-50 text-purple-700"
         />
       </div>
 
@@ -182,13 +197,14 @@ export default function Reportes() {
 }
 
 // ---------- Componente tarjeta de estadísticas ----------
-function StatCard({ icon, title, value, color }) {
+function StatCard({ icon, title, value, subtitle, color }) {
   return (
     <div className="rounded-xl p-5 flex items-center gap-4 bg-white border border-gray-200">
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
       <div>
         <p className="text-sm text-gray-500">{title}</p>
         <p className="text-xl font-semibold text-gray-800">{value}</p>
+        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   )
@@ -198,7 +214,6 @@ function StatCard({ icon, title, value, color }) {
 function ActivityHeatmap({ data }) {
   const { days, ranges, matrix, max_value } = data
 
-  // Calculate color intensity based on value
   const getColor = (value) => {
     if (!value || value === 0) return "bg-gray-100"
     const intensity = Math.min((value / max_value) * 100, 100)
@@ -212,11 +227,9 @@ function ActivityHeatmap({ data }) {
 
   return (
     <div className="space-y-4">
-      {/* Heatmap Grid */}
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
           <div className="flex gap-2">
-            {/* Time range labels */}
             <div className="flex flex-col gap-1 justify-around py-2">
               {ranges.map((range, idx) => (
                 <div key={idx} className="h-12 flex items-center justify-end pr-2 text-sm text-gray-600 font-medium">
@@ -225,9 +238,7 @@ function ActivityHeatmap({ data }) {
               ))}
             </div>
 
-            {/* Heatmap cells */}
             <div className="flex-1">
-              {/* Day labels */}
               <div className="flex gap-1 mb-2">
                 {days.map((day, idx) => (
                   <div key={idx} className="flex-1 text-center text-sm font-medium text-gray-700">
@@ -236,7 +247,6 @@ function ActivityHeatmap({ data }) {
                 ))}
               </div>
 
-              {/* Matrix grid */}
               <div className="space-y-1">
                 {matrix.map((row, rowIdx) => (
                   <div key={rowIdx} className="flex gap-1">
@@ -257,7 +267,6 @@ function ActivityHeatmap({ data }) {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex items-center justify-center gap-2 pt-4">
         <span className="text-sm text-gray-600">0</span>
         <div className="flex gap-1">

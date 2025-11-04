@@ -194,60 +194,80 @@ function StatCard({ icon, title, value, color }) {
   )
 }
 
-// ---------- Componente Heatmap de Actividad ----------
 function ActivityHeatmap({ data }) {
   const { days, ranges, matrix, max_value } = data
+  const [hoveredCell, setHoveredCell] = useState(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
-  // Calculate color intensity based on value
   const getColor = (value) => {
-    if (!value || value === 0) return "bg-gray-100"
-    const intensity = Math.min((value / max_value) * 100, 100)
+    if (!value || value === 0) return "bg-blue-50"
+    const intensity = value / max_value
 
-    if (intensity <= 20) return "bg-blue-200"
-    if (intensity <= 40) return "bg-blue-300"
-    if (intensity <= 60) return "bg-blue-400"
-    if (intensity <= 80) return "bg-blue-500"
-    return "bg-blue-600"
+    if (intensity <= 0.125) return "bg-blue-100"
+    if (intensity <= 0.25) return "bg-blue-200"
+    if (intensity <= 0.375) return "bg-blue-300"
+    if (intensity <= 0.5) return "bg-blue-400"
+    if (intensity <= 0.625) return "bg-blue-500"
+    if (intensity <= 0.75) return "bg-blue-600"
+    if (intensity <= 0.875) return "bg-blue-700"
+    return "bg-blue-800"
+  }
+
+  const handleCellHover = (e, rowIdx, colIdx, value) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltipPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10,
+    })
+    setHoveredCell({ row: rowIdx, col: colIdx, value, day: days[colIdx], range: ranges[rowIdx] })
+  }
+
+  const handleCellLeave = () => {
+    setHoveredCell(null)
   }
 
   return (
-    <div className="space-y-4">
-      {/* Heatmap Grid */}
+    <div className="space-y-8 relative">
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
-          <div className="flex gap-2">
-            {/* Time range labels */}
-            <div className="flex flex-col gap-1 justify-around py-2">
+          <div className="flex gap-6">
+            {/* Time Range Labels (Rows) */}
+            <div className="flex flex-col gap-0 justify-start py-8 min-w-max">
+              <div className="h-8 flex items-end"></div>
               {ranges.map((range, idx) => (
-                <div key={idx} className="h-12 flex items-center justify-end pr-2 text-sm text-gray-600 font-medium">
+                <div
+                  key={idx}
+                  className="h-10 flex items-center justify-end pr-2 text-xs font-semibold text-gray-700 min-w-16"
+                >
                   {range}
                 </div>
               ))}
             </div>
 
-            {/* Heatmap cells */}
+            {/* Heatmap Grid Cells */}
             <div className="flex-1">
-              {/* Day labels */}
-              <div className="flex gap-1 mb-2">
+              {/* Day Headers (Columns) */}
+              <div className="flex mb-4 px-0">
                 {days.map((day, idx) => (
-                  <div key={idx} className="flex-1 text-center text-sm font-medium text-gray-700">
+                  <div
+                    key={idx}
+                    className="flex-1 text-center text-xs font-semibold text-gray-700 h-8 flex items-end justify-center pb-1"
+                  >
                     {day}
                   </div>
                 ))}
               </div>
 
-              {/* Matrix grid */}
-              <div className="space-y-1">
+              <div className="flex flex-col gap-1">
                 {matrix.map((row, rowIdx) => (
                   <div key={rowIdx} className="flex gap-1">
                     {row.map((value, colIdx) => (
                       <div
                         key={colIdx}
-                        className={`flex-1 h-12 rounded ${getColor(value)} flex items-center justify-center text-xs font-medium text-gray-700 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer`}
-                        title={`${days[colIdx]} ${ranges[rowIdx]}: ${value} tickets`}
-                      >
-                        {value > 0 ? value : ""}
-                      </div>
+                        className={`flex-1 h-10 ${getColor(value)} cursor-pointer transition-all duration-100 hover:ring-2 hover:ring-offset-1 hover:ring-blue-500 rounded`}
+                        onMouseEnter={(e) => handleCellHover(e, rowIdx, colIdx, value)}
+                        onMouseLeave={handleCellLeave}
+                      />
                     ))}
                   </div>
                 ))}
@@ -257,18 +277,35 @@ function ActivityHeatmap({ data }) {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-2 pt-4">
-        <span className="text-sm text-gray-600">0</span>
-        <div className="flex gap-1">
-          <div className="w-8 h-4 bg-gray-100 rounded"></div>
-          <div className="w-8 h-4 bg-blue-200 rounded"></div>
-          <div className="w-8 h-4 bg-blue-300 rounded"></div>
-          <div className="w-8 h-4 bg-blue-400 rounded"></div>
-          <div className="w-8 h-4 bg-blue-500 rounded"></div>
-          <div className="w-8 h-4 bg-blue-600 rounded"></div>
+      {hoveredCell && (
+        <div
+          className="fixed bg-white border border-gray-300 rounded-lg shadow-lg px-3 py-2 text-xs z-50 pointer-events-none transform -translate-x-1/2 -translate-y-full"
+          style={{
+            left: `${tooltipPos.x}px`,
+            top: `${tooltipPos.y}px`,
+          }}
+        >
+          <div className="font-semibold text-gray-900">{hoveredCell.day}</div>
+          <div className="text-gray-600">{hoveredCell.range}</div>
+          <div className="text-blue-600 font-bold mt-1">{hoveredCell.value} tickets</div>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-white"></div>
         </div>
-        <span className="text-sm text-gray-600">{max_value}+</span>
+      )}
+
+      {/* Color Scale Legend */}
+      <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-200">
+        <span className="text-xs font-medium text-gray-600">0</span>
+        <div className="flex gap-0">
+          <div className="w-5 h-5 bg-blue-50"></div>
+          <div className="w-5 h-5 bg-blue-100"></div>
+          <div className="w-5 h-5 bg-blue-200"></div>
+          <div className="w-5 h-5 bg-blue-300"></div>
+          <div className="w-5 h-5 bg-blue-400"></div>
+          <div className="w-5 h-5 bg-blue-500"></div>
+          <div className="w-5 h-5 bg-blue-600"></div>
+          <div className="w-5 h-5 bg-blue-700"></div>
+        </div>
+        <span className="text-xs font-medium text-gray-600">{Math.round(max_value)}</span>
       </div>
     </div>
   )

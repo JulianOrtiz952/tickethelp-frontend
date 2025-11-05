@@ -27,6 +27,7 @@ export default function Reportes() {
   const [year] = useState(new Date().getFullYear())
   const [month] = useState(String(new Date().getMonth() + 1).padStart(2, "0"))
   const [avgResolutionTime, setAvgResolutionTime] = useState(null)
+  const [resolutionsByWeekday, setResolutionsByWeekday] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -37,7 +38,7 @@ export default function Reportes() {
       setLoading(true)
       setError("")
 
-      const [statsRes, rankRes, clientsRes, heatmapRes, avgResTimeRes] = await Promise.all([
+      const [statsRes, rankRes, clientsRes, heatmapRes, avgResTimeRes, resolutionsByWeekdayRes] = await Promise.all([
         api("/api/reports/stats/general-stats/").catch((e) => {
           console.error("[v0] Error en general-stats:", e.status, e.data)
           throw e
@@ -60,6 +61,10 @@ export default function Reportes() {
           console.error("[v0] Error en avg-resolution-time:", e.status, e.data)
           throw e
         }),
+        api("/api/reports/stats/resolutions-by-weekday/").catch((e) => {
+          console.error("[v0] Error en resolutions-by-weekday:", e.status, e.data)
+          throw e
+        }),
       ])
 
       setGeneralStats(statsRes)
@@ -67,6 +72,7 @@ export default function Reportes() {
       setClientsEvolution(clientsRes)
       setHeatmapData(heatmapRes)
       setAvgResolutionTime(avgResTimeRes)
+      setResolutionsByWeekday(resolutionsByWeekdayRes)
     } catch (e) {
       console.error("[v0] Error cargando reportes:", e)
       const errorMsg = e?.data?.detail || e?.message || "Error al cargar los reportes. Intenta nuevamente."
@@ -165,10 +171,19 @@ export default function Reportes() {
         )}
       </div>
 
-      {/* ---------- Distribución por Estado ---------- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Distribución por Estado</h2>
-        <StatusDistribution data={statusDistribution} onRefresh={fetchData} />
+      {/* ---------- Distribución por Estado y Tickets Cerrados por Día ---------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Distribución por Estado */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Distribución por Estado</h2>
+          <StatusDistribution data={statusDistribution} onRefresh={fetchData} />
+        </div>
+
+        {/* Tickets Cerrados por Día */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tickets Cerrados por Día</h2>
+          <ResolutionsByWeekday data={resolutionsByWeekday} />
+        </div>
       </div>
 
       {/* ---------- Heatmap de Actividad ---------- */}
@@ -271,7 +286,6 @@ function StatusDistribution({ data, onRefresh }) {
     if (diffDays > 365) {
       return { valid: false, error: "El rango de búsqueda no puede ser mayor a un año (365 días)" }
     }
-    
 
     return { valid: true, error: "" }
   }
@@ -606,4 +620,71 @@ function getSuccessBarStyle(percentage) {
     }
   }
   return { width: `${percentage}%` }
+}
+
+function ResolutionsByWeekday({ data }) {
+  const [hoveredDay, setHoveredDay] = useState(null)
+
+  const chartData = data
+    ? Object.entries(data).map(([dayName, count]) => {
+        const dayMap = {
+          lunes: "Lun",
+          martes: "Mar",
+          miercoles: "Mié",
+          jueves: "Jue",
+          viernes: "Vie",
+          sabado: "Sáb",
+          domingo: "Dom",
+        }
+        return {
+          day: dayMap[dayName] || dayName,
+          "Tickets Cerrados": count,
+        }
+      })
+    : []
+
+  const maxValue = chartData.length > 0 ? Math.max(...chartData.map((d) => d["Tickets Cerrados"])) : 0
+  const yAxisMax = Math.ceil((maxValue + 1) / 2) * 2
+
+  return (
+    <div className="space-y-4">
+      {chartData.length > 0 ? (
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart
+            data={chartData}
+            onMouseLeave={() => setHoveredDay(null)}
+            margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#e6e6e6" />
+            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+            <YAxis
+              tick={{ fontSize: 12 }}
+              domain={[0, yAxisMax]}
+              ticks={Array.from({ length: yAxisMax / 2 + 1 }, (_, i) => i * 2)}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                padding: "8px",
+              }}
+              formatter={(value) => [`${value}`, "Tickets Cerrados"]}
+              labelFormatter={(label) => label}
+            />
+            <Line
+              type="monotone"
+              dataKey="Tickets Cerrados"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={{ fill: "#3b82f6", r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles.</p>
+      )}
+    </div>
+  )
 }

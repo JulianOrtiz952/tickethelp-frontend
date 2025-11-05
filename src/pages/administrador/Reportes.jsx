@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react"
 import { TrendingUp, Users, ClipboardList, Activity } from "lucide-react"
 import { api } from "../../api/client"
-import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts"
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 
 export default function Reportes() {
   const [generalStats, setGeneralStats] = useState(null)
@@ -130,6 +141,12 @@ export default function Reportes() {
         )}
       </div>
 
+      {/* ---------- Distribución por Estado ---------- */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Distribución por Estado</h2>
+        <StatusDistribution />
+      </div>
+
       {/* ---------- Heatmap de Actividad ---------- */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Heatmap de Actividad</h2>
@@ -176,6 +193,92 @@ export default function Reportes() {
         ) : (
           <p className="text-gray-500 text-sm">No hay información disponible del ranking de técnicos.</p>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ... existing components ...
+
+function StatusDistribution() {
+  // Static data for styling review - will be replaced with API call when endpoint is ready
+  const staticData = [
+    { name: "Abierto", value: 45, color: "#EF4444" },
+    { name: "En diagnóstico", value: 28, color: "#F59E0B" },
+    { name: "En reparación", value: 52, color: "#3B82F6" },
+    { name: "En pruebas", value: 18, color: "#8B5CF6" },
+    { name: "Finalizado", value: 157, color: "#10B981" },
+  ]
+
+  const total = staticData.reduce((sum, item) => sum + item.value, 0)
+
+  const [hoveredState, setHoveredState] = useState(null)
+
+  // Calculate percentage for each state
+  const dataWithPercentage = staticData.map((item) => ({
+    ...item,
+    percentage: ((item.value / total) * 100).toFixed(1),
+  }))
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* Pie Chart */}
+      <div className="flex-1 flex items-center justify-center">
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={dataWithPercentage}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              outerRadius={100}
+              fill="#8884d8"
+              dataKey="value"
+              onMouseEnter={(_, index) => setHoveredState(index)}
+              onMouseLeave={() => setHoveredState(null)}
+            >
+              {dataWithPercentage.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.color}
+                  opacity={hoveredState === null || hoveredState === index ? 1 : 0.6}
+                  style={{ transition: "opacity 0.2s" }}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+              }}
+              formatter={(value, name, props) => [
+                `${value} tickets (${((value / total) * 100).toFixed(1)}%)`,
+                props.payload.name,
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend with percentages */}
+      <div className="flex-1 flex flex-col justify-center gap-4">
+        {dataWithPercentage.map((item, index) => (
+          <div
+            key={index}
+            className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50"
+            onMouseEnter={() => setHoveredState(index)}
+            onMouseLeave={() => setHoveredState(null)}
+          >
+            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }}></div>
+            <div className="flex-1">
+              <div className="font-medium text-gray-800">{item.name}</div>
+              <div className="text-sm text-gray-600">
+                {item.percentage}% ({item.value} tickets)
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { TrendingUp, Users, ClipboardList, Activity, Clock } from "lucide-react"
-import { api } from "../../api/client"
+import { api } from "../../lib/api"
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts"
 
 export default function Reportes() {
@@ -107,11 +107,7 @@ export default function Reportes() {
         <StatCard
           icon={<TrendingUp className="w-6 h-6 text-indigo-600" />}
           title="Promedio de Éxito"
-          value={
-            ranking.length
-              ? `${Math.round(ranking.reduce((acc, r) => acc + (r.porcentaje_exito || 0), 0) / ranking.length)}%`
-              : "0%"
-          }
+          value={generalStats?.promedio_exito ? `${Math.round(generalStats.promedio_exito)}%` : "0%"}
           color="bg-indigo-50 text-indigo-700"
         />
         <StatCard
@@ -170,7 +166,7 @@ export default function Reportes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {ranking.map((r, i) => (
+                {ranking.slice(0, 5).map((r, i) => (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="py-2 px-4">{r.nombre_completo}</td>
                     <td className="py-2 px-4 text-center">{r.tickets_asignados}</td>
@@ -178,9 +174,14 @@ export default function Reportes() {
                     <td className="py-2 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-24 bg-gray-200 h-2 rounded-full overflow-hidden">
-                          <div className="h-full bg-teal-500" style={{ width: `${r.porcentaje_exito}%` }}></div>
+                          <div
+                            className={`h-full transition-all ${getSuccessBarColor(r.porcentaje_exito)}`}
+                            style={getSuccessBarStyle(r.porcentaje_exito)}
+                          ></div>
                         </div>
-                        <span className="text-gray-700 font-medium">{Math.round(r.porcentaje_exito)}%</span>
+                        <span className={`font-medium ${getSuccessTextColor(r.porcentaje_exito)}`}>
+                          {Math.round(r.porcentaje_exito)}%
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -281,4 +282,35 @@ function ActivityHeatmap({ data }) {
       </div>
     </div>
   )
+}
+
+// ---------- Función para determinar color de barra de éxito ----------
+function getSuccessBarColor(percentage) {
+  if (percentage < 25) return "bg-red-500"
+  if (percentage < 50) return "bg-yellow-400"
+  if (percentage < 75) return "bg-orange-400"
+  if (percentage < 100) return "bg-green-400"
+  return "bg-gradient-to-r from-green-500 via-teal-400 to-green-600"
+}
+
+// ---------- Función para determinar color de texto de éxito ----------
+function getSuccessTextColor(percentage) {
+  if (percentage < 25) return "text-red-600"
+  if (percentage < 50) return "text-yellow-600"
+  if (percentage < 75) return "text-orange-600"
+  if (percentage < 100) return "text-green-600"
+  return "text-green-700"
+}
+
+// ---------- Función para estilos dinámicos de la barra (incluye animación para 100%) ----------
+function getSuccessBarStyle(percentage) {
+  if (percentage === 100) {
+    return {
+      width: "100%",
+      animation: "gradient-flow 2s ease-in-out infinite",
+      backgroundSize: "200% 100%",
+      backgroundImage: "linear-gradient(90deg, #22c55e, #14b8a6, #22c55e)",
+    }
+  }
+  return { width: `${percentage}%` }
 }

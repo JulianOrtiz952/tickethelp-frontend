@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { TrendingUp, Users, ClipboardList, Activity } from "lucide-react"
+import { TrendingUp, Users, ClipboardList, Activity, Clock } from "lucide-react"
 import { api } from "../../api/client"
 import {
   LineChart,
@@ -21,10 +21,12 @@ export default function Reportes() {
   const [ranking, setRanking] = useState([])
   const [clientsEvolution, setClientsEvolution] = useState(null)
   const [heatmapData, setHeatmapData] = useState(null)
+  const [statusDistribution, setStatusDistribution] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [year] = useState(new Date().getFullYear())
   const [month] = useState(String(new Date().getMonth() + 1).padStart(2, "0"))
+  const [avgResolutionTime, setAvgResolutionTime] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -35,24 +37,40 @@ export default function Reportes() {
       setLoading(true)
       setError("")
 
-      const [statsRes, rankRes, clientsRes, heatmapRes] = await Promise.all([
-        api("/api/reports/stats/general-stats/"),
-        api("/api/reports/stats/performance-ranking/"),
-        api(`/api/reports/stats/clients-evolution/?year=${year}`),
-        api(`/api/reports/stats/activity-heatmap/?year=${year}&month=${month}`),
+      const [statsRes, rankRes, clientsRes, heatmapRes, avgResTimeRes] = await Promise.all([
+        api("/api/reports/stats/general-stats/").catch((e) => {
+          console.error("[v0] Error en general-stats:", e.status, e.data)
+          throw e
+        }),
+        api(
+          `/api/reports/stats/performance-ranking/?from=${new Date().toISOString().split("T")[0]}&to=${new Date().toISOString().split("T")[0]}`,
+        ).catch((e) => {
+          console.error("[v0] Error en performance-ranking:", e.status, e.data)
+          throw e
+        }),
+        api(`/api/reports/stats/clients-evolution/?year=${year}`).catch((e) => {
+          console.error("[v0] Error en clients-evolution:", e.status, e.data)
+          throw e
+        }),
+        api(`/api/reports/stats/activity-heatmap/?year=${year}&month=${month}`).catch((e) => {
+          console.error("[v0] Error en activity-heatmap:", e.status, e.data)
+          throw e
+        }),
+        api("/api/reports/stats/avg-resolution-time/").catch((e) => {
+          console.error("[v0] Error en avg-resolution-time:", e.status, e.data)
+          throw e
+        }),
       ])
 
       setGeneralStats(statsRes)
-      console.log("[v0] General Stats:", statsRes)
       setRanking(rankRes)
-      console.log("[v0] Ranking:", rankRes)
       setClientsEvolution(clientsRes)
-      console.log("[v0] Clients Evolution:", clientsRes)
       setHeatmapData(heatmapRes)
-      console.log("[v0] Heatmap Data:", heatmapRes)
+      setAvgResolutionTime(avgResTimeRes)
     } catch (e) {
       console.error("[v0] Error cargando reportes:", e)
-      setError("Error al cargar los reportes. Intenta nuevamente.")
+      const errorMsg = e?.data?.detail || e?.message || "Error al cargar los reportes. Intenta nuevamente."
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -86,13 +104,12 @@ export default function Reportes() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Reportes del Sistema</h1>
-        <div className="text-sm text-gray-500">Año: {year}</div>
       </div>
 
       {/* ---------- Estadísticas generales ---------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           icon={<ClipboardList className="w-6 h-6 text-teal-600" />}
           title="Tickets Abiertos"
@@ -114,12 +131,19 @@ export default function Reportes() {
         <StatCard
           icon={<TrendingUp className="w-6 h-6 text-indigo-600" />}
           title="Promedio de Éxito"
-          value={
-            ranking.length
-              ? `${Math.round(ranking.reduce((acc, r) => acc + (r.porcentaje_exito || 0), 0) / ranking.length)}%`
-              : "0%"
-          }
+          value={generalStats?.promedio_exito ? `${Math.round(generalStats.promedio_exito)}%` : "0%"}
           color="bg-indigo-50 text-indigo-700"
+        />
+        <StatCard
+          icon={<Clock className="w-6 h-6 text-purple-600" />}
+          title="Tiempo Promedio"
+          value={avgResolutionTime ? `${avgResolutionTime.promedio_dias.toFixed(1)} días` : "N/A"}
+          subtitle={
+            avgResolutionTime
+              ? `${avgResolutionTime.promedio_horas.toFixed(1)}h • ${avgResolutionTime.tickets_contemplados} tickets`
+              : null
+          }
+          color="bg-purple-50 text-purple-700"
         />
       </div>
 
@@ -144,7 +168,7 @@ export default function Reportes() {
       {/* ---------- Distribución por Estado ---------- */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Distribución por Estado</h2>
-        <StatusDistribution />
+        <StatusDistribution data={statusDistribution} onRefresh={fetchData} />
       </div>
 
       {/* ---------- Heatmap de Actividad ---------- */}
@@ -180,9 +204,14 @@ export default function Reportes() {
                     <td className="py-2 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-24 bg-gray-200 h-2 rounded-full overflow-hidden">
-                          <div className="h-full bg-teal-500" style={{ width: `${r.porcentaje_exito}%` }}></div>
+                          <div
+                            className={`h-full transition-all ${getSuccessBarColor(r.porcentaje_exito)}`}
+                            style={getSuccessBarStyle(r.porcentaje_exito)}
+                          ></div>
                         </div>
-                        <span className="text-gray-700 font-medium">{Math.round(r.porcentaje_exito)}%</span>
+                        <span className={`font-medium ${getSuccessTextColor(r.porcentaje_exito)}`}>
+                          {Math.round(r.porcentaje_exito)}%
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -198,101 +227,225 @@ export default function Reportes() {
   )
 }
 
-// ... existing components ...
+function StatusDistribution({ data, onRefresh }) {
+  const [fromDate, setFromDate] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() - 30)
+    return (
+      date.getFullYear() +
+      "-" +
+      String(date.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(date.getDate()).padStart(2, "0")
+    )
+  })
 
-function StatusDistribution() {
-  // Static data for styling review - will be replaced with API call when endpoint is ready
-  const staticData = [
-    { name: "Abierto", value: 45, color: "#EF4444" },
-    { name: "En diagnóstico", value: 28, color: "#F59E0B" },
-    { name: "En reparación", value: 52, color: "#3B82F6" },
-    { name: "En pruebas", value: 18, color: "#8B5CF6" },
-    { name: "Finalizado", value: 157, color: "#10B981" },
-  ]
+  const [toDate, setToDate] = useState(() => {
+    const date = new Date()
+    return (
+      date.getFullYear() +
+      "-" +
+      String(date.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(date.getDate()).padStart(2, "0")
+    )
+  })
 
-  const total = staticData.reduce((sum, item) => sum + item.value, 0)
+  const [dateError, setDateError] = useState("")
+  const [statusData, setStatusData] = useState(null)
+  const [loading, setStatusLoading] = useState(false)
+
+  function validateDateRange(from, to) {
+    if (!from || !to) return { valid: false, error: "Ambas fechas son requeridas" }
+
+    const fromD = new Date(from + "T00:00:00")
+    const toD = new Date(to + "T23:59:59")
+
+    if (fromD > toD) {
+      return { valid: false, error: "La fecha de inicio debe ser menor que la fecha de fin" }
+    }
+
+    const diffTime = Math.abs(toD - fromD)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays > 365) {
+      return { valid: false, error: "El rango de búsqueda no puede ser mayor a un año (365 días)" }
+    }
+    
+
+    return { valid: true, error: "" }
+  }
+
+  const handleDateChange = async (type, newDate) => {
+    if (type === "from") {
+      setFromDate(newDate)
+    } else {
+      setToDate(newDate)
+    }
+
+    const validation = validateDateRange(type === "from" ? newDate : fromDate, type === "to" ? newDate : toDate)
+    if (!validation.valid) {
+      setDateError(validation.error)
+    } else {
+      setDateError("")
+      try {
+        setStatusLoading(true)
+        const newFromDate = type === "from" ? newDate : fromDate
+        const newToDate = type === "to" ? newDate : toDate
+        const res = await api(`/api/reports/stats/status-distribution/?from=${newFromDate}&to=${newToDate}`)
+        setStatusData(res)
+      } catch (e) {
+        console.error("[v0] Error fetching status distribution:", e)
+        setDateError("Error al cargar los datos. Intenta nuevamente.")
+      } finally {
+        setStatusLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setStatusLoading(true)
+        const res = await api(`/api/reports/stats/status-distribution/?from=${fromDate}&to=${toDate}`)
+        setStatusData(res)
+      } catch (e) {
+        console.error("[v0] Error fetching initial status distribution:", e)
+      } finally {
+        setStatusLoading(false)
+      }
+    }
+    fetchInitialData()
+  }, [])
+
+  const rawData = statusData?.items || []
+
+  const statusColorMap = {
+    finalized: "#9FCB58", // bright green - Finalizado
+    diagnosis: "#FFD349", // bright orange - En diagnóstico
+    in_repair: "#5894CB", // bright blue - En reparación
+    open: "#FF7978", // bright red - Abierto
+    trial: "#B678FB", // bright magenta - En pruebas
+  }
+
+  const formattedData = rawData
+    .filter((item) => item.cantidad > 0)
+    .map((item) => {
+      const capitalizedName = item.estado_nombre
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ")
+
+      return {
+        name: capitalizedName,
+        value: item.cantidad,
+        percentage: item.porcentaje,
+        color: statusColorMap[item.estado_codigo] || "#f3f4f6",
+      }
+    })
 
   const [hoveredState, setHoveredState] = useState(null)
 
-  // Calculate percentage for each state
-  const dataWithPercentage = staticData.map((item) => ({
-    ...item,
-    percentage: ((item.value / total) * 100).toFixed(1),
-  }))
+  const displayData = formattedData.length > 0 ? formattedData : []
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
-      {/* Pie Chart */}
-      <div className="flex-1 flex items-center justify-center">
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={dataWithPercentage}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              outerRadius={100}
-              fill="#8884d8"
-              dataKey="value"
-              onMouseEnter={(_, index) => setHoveredState(index)}
-              onMouseLeave={() => setHoveredState(null)}
-            >
-              {dataWithPercentage.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.color}
-                  opacity={hoveredState === null || hoveredState === index ? 1 : 0.6}
-                  style={{ transition: "opacity 0.2s" }}
-                />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-              }}
-              formatter={(value, name, props) => [
-                `${value} tickets (${((value / total) * 100).toFixed(1)}%)`,
-                props.payload.name,
-              ]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Desde:</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => handleDateChange("from", e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700">Hasta:</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => handleDateChange("to", e.target.value)}
+            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
-      {/* Legend with percentages */}
-      <div className="flex-1 flex flex-col justify-center gap-4">
-        {dataWithPercentage.map((item, index) => (
-          <div
-            key={index}
-            className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50"
-            onMouseEnter={() => setHoveredState(index)}
-            onMouseLeave={() => setHoveredState(null)}
-          >
-            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }}></div>
-            <div className="flex-1">
-              <div className="font-medium text-gray-800">{item.name}</div>
-              <div className="text-sm text-gray-600">
-                {item.percentage}% ({item.value} tickets)
-              </div>
-            </div>
+      {dateError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-800 text-sm">{dateError}</div>
+      )}
+
+      {loading && <div className="text-center text-gray-500 text-sm py-4">Cargando datos...</div>}
+
+      {!loading && (
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex-1 flex items-center justify-center">
+            {displayData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={displayData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    onMouseEnter={(_, index) => setHoveredState(index)}
+                    onMouseLeave={() => setHoveredState(null)}
+                  >
+                    {displayData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.color}
+                        opacity={hoveredState === null || hoveredState === index ? 1 : 0.6}
+                        style={{ transition: "opacity 0.2s" }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #ddd",
+                      borderRadius: "8px",
+                    }}
+                    formatter={(value, name, props) => [
+                      `${value} tickets (${props.payload.percentage.toFixed(1)}%)`,
+                      props.payload.name,
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No hay datos disponibles para el rango seleccionado.</p>
+            )}
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
-// ---------- Componente tarjeta de estadísticas ----------
-function StatCard({ icon, title, value, color }) {
-  return (
-    <div className="rounded-xl p-5 flex items-center gap-4 bg-white border border-gray-200">
-      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
-      <div>
-        <p className="text-sm text-gray-500">{title}</p>
-        <p className="text-xl font-semibold text-gray-800">{value}</p>
-      </div>
+          {/* Legend with percentages */}
+          <div className="flex-1 flex flex-col justify-center gap-4">
+            {displayData.length > 0 ? (
+              displayData.map((item, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all hover:bg-gray-50"
+                  onMouseEnter={() => setHoveredState(index)}
+                  onMouseLeave={() => setHoveredState(null)}
+                >
+                  <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }}></div>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">{item.name}</div>
+                    <div className="text-sm text-gray-600">
+                      {item.percentage.toFixed(1)}% ({item.value} tickets)
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm">Sin datos para mostrar</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -412,4 +565,45 @@ function ActivityHeatmap({ data }) {
       </div>
     </div>
   )
+}
+
+function StatCard({ icon, title, value, subtitle, color }) {
+  return (
+    <div className="rounded-xl p-5 flex items-center gap-4 bg-white border border-gray-200">
+      <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
+      <div>
+        <p className="text-sm text-gray-500">{title}</p>
+        <p className="text-xl font-semibold text-gray-800">{value}</p>
+        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      </div>
+    </div>
+  )
+}
+
+function getSuccessBarColor(percentage) {
+  if (percentage < 25) return "bg-red-500"
+  if (percentage < 50) return "bg-yellow-400"
+  if (percentage < 75) return "bg-orange-400"
+  if (percentage < 100) return "bg-green-400"
+  return "bg-gradient-to-r from-green-500 via-teal-400 to-green-600"
+}
+
+function getSuccessTextColor(percentage) {
+  if (percentage < 25) return "text-red-600"
+  if (percentage < 50) return "text-yellow-600"
+  if (percentage < 75) return "text-orange-600"
+  if (percentage < 100) return "text-green-600"
+  return "text-green-700"
+}
+
+function getSuccessBarStyle(percentage) {
+  if (percentage === 100) {
+    return {
+      width: "100%",
+      animation: "gradient-flow 2s ease-in-out infinite",
+      backgroundSize: "200% 100%",
+      backgroundImage: "linear-gradient(90deg, #22c55e, #14b8a6, #22c55e)",
+    }
+  }
+  return { width: `${percentage}%` }
 }

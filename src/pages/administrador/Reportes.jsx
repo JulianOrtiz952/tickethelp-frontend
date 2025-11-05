@@ -16,6 +16,28 @@ import {
   Cell,
 } from "recharts"
 
+function getCriticalityColor(dias) {
+  if (dias >= 15) return "#ef4444" // red - very critical
+  if (dias >= 10) return "#f97316" // orange - critical
+  if (dias >= 5) return "#eab308" // yellow - warning
+  return "#3b82f6" // blue - normal
+}
+
+function getCriticalityBgColor(dias) {
+  if (dias >= 15) return "text-red-600"
+  if (dias >= 10) return "text-orange-600"
+  if (dias >= 5) return "text-yellow-600"
+  return "text-blue-600"
+}
+
+function capitalizeStatus(status) {
+  if (!status) return ""
+  return status
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+}
+
 export default function Reportes() {
   const [generalStats, setGeneralStats] = useState(null)
   const [ranking, setRanking] = useState([])
@@ -28,6 +50,8 @@ export default function Reportes() {
   const [month] = useState(String(new Date().getMonth() + 1).padStart(2, "0"))
   const [avgResolutionTime, setAvgResolutionTime] = useState(null)
   const [resolutionsByWeekday, setResolutionsByWeekday] = useState(null)
+  const [criticalTickets, setCriticalTickets] = useState(null)
+  const [flowFunnel, setFlowFunnel] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -38,31 +62,48 @@ export default function Reportes() {
       setLoading(true)
       setError("")
 
-      const [statsRes, rankRes, clientsRes, heatmapRes, avgResTimeRes, resolutionsByWeekdayRes] = await Promise.all([
+      const [
+        statsRes,
+        rankRes,
+        clientsRes,
+        heatmapRes,
+        avgResTimeRes,
+        resolutionsByWeekdayRes,
+        criticalRes,
+        flowFunnelRes,
+      ] = await Promise.all([
         api("/api/reports/stats/general-stats/").catch((e) => {
-          console.error("[v0] Error en general-stats:", e.status, e.data)
+          console.error("Error en general-stats:", e.status, e.data)
           throw e
         }),
         api(
           `/api/reports/stats/performance-ranking/?from=${new Date().toISOString().split("T")[0]}&to=${new Date().toISOString().split("T")[0]}`,
         ).catch((e) => {
-          console.error("[v0] Error en performance-ranking:", e.status, e.data)
+          console.error("Error en performance-ranking:", e.status, e.data)
           throw e
         }),
         api(`/api/reports/stats/clients-evolution/?year=${year}`).catch((e) => {
-          console.error("[v0] Error en clients-evolution:", e.status, e.data)
+          console.error("Error en clients-evolution:", e.status, e.data)
           throw e
         }),
         api(`/api/reports/stats/activity-heatmap/?year=${year}&month=${month}`).catch((e) => {
-          console.error("[v0] Error en activity-heatmap:", e.status, e.data)
+          console.error("Error en activity-heatmap:", e.status, e.data)
           throw e
         }),
         api("/api/reports/stats/avg-resolution-time/").catch((e) => {
-          console.error("[v0] Error en avg-resolution-time:", e.status, e.data)
+          console.error("Error en avg-resolution-time:", e.status, e.data)
           throw e
         }),
         api("/api/reports/stats/resolutions-by-weekday/").catch((e) => {
-          console.error("[v0] Error en resolutions-by-weekday:", e.status, e.data)
+          console.error("Error en resolutions-by-weekday:", e.status, e.data)
+          throw e
+        }),
+        api("/api/reports/stats/aging-top/").catch((e) => {
+          console.error("Error en aging-top:", e.status, e.data)
+          throw e
+        }),
+        api("/api/reports/stats/flow-funnel/").catch((e) => {
+          console.error("Error en flow-funnel:", e.status, e.data)
           throw e
         }),
       ])
@@ -73,8 +114,10 @@ export default function Reportes() {
       setHeatmapData(heatmapRes)
       setAvgResolutionTime(avgResTimeRes)
       setResolutionsByWeekday(resolutionsByWeekdayRes)
+      setCriticalTickets(criticalRes)
+      setFlowFunnel(flowFunnelRes)
     } catch (e) {
-      console.error("[v0] Error cargando reportes:", e)
+      console.error("Error cargando reportes:", e)
       const errorMsg = e?.data?.detail || e?.message || "Error al cargar los reportes. Intenta nuevamente."
       setError(errorMsg)
     } finally {
@@ -183,6 +226,62 @@ export default function Reportes() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Tickets Cerrados por Día</h2>
           <ResolutionsByWeekday data={resolutionsByWeekday} />
+        </div>
+      </div>
+
+      {/* ---------- Tickets Críticos y Embudo de Flujo ---------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tickets Críticos */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tickets Críticos (Top 10)</h2>
+          <div className="max-h-[360px] overflow-y-auto space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {criticalTickets && criticalTickets.length > 0 ? (
+              criticalTickets.map((ticket, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                  style={{
+                    borderLeft: `4px solid ${getCriticalityColor(ticket.dias)}`,
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="font-semibold text-gray-900 text-sm">#{ticket.ticket_id}</p>
+                      <div className={`font-bold text-sm whitespace-nowrap ${getCriticalityBgColor(ticket.dias)}`}>
+                        {Math.ceil(ticket.dias)} día{Math.ceil(ticket.dias) !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-600 truncate mb-1" title={ticket.titulo}>
+                      {ticket.titulo}
+                    </p>
+                    {ticket.cliente_nombre && (
+                      <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.cliente_nombre}>
+                        <span className="font-medium">Cliente:</span> {ticket.cliente_nombre}
+                      </p>
+                    )}
+                    {ticket.tecnico_nombre && (
+                      <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.tecnico_nombre}>
+                        <span className="font-medium">Técnico:</span> {ticket.tecnico_nombre}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs">
+                        {capitalizeStatus(ticket.estado_nombre)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-8">No hay tickets críticos en este momento.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Flow Funnel */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Embudo de Flujo</h2>
+          <FlowFunnel data={flowFunnel} />
         </div>
       </div>
 
@@ -309,7 +408,7 @@ function StatusDistribution({ data, onRefresh }) {
         const res = await api(`/api/reports/stats/status-distribution/?from=${newFromDate}&to=${newToDate}`)
         setStatusData(res)
       } catch (e) {
-        console.error("[v0] Error fetching status distribution:", e)
+        console.error("Error fetching status distribution:", e)
         setDateError("Error al cargar los datos. Intenta nuevamente.")
       } finally {
         setStatusLoading(false)
@@ -324,7 +423,7 @@ function StatusDistribution({ data, onRefresh }) {
         const res = await api(`/api/reports/stats/status-distribution/?from=${fromDate}&to=${toDate}`)
         setStatusData(res)
       } catch (e) {
-        console.error("[v0] Error fetching initial status distribution:", e)
+        console.error("Error fetching initial status distribution:", e)
       } finally {
         setStatusLoading(false)
       }
@@ -684,6 +783,58 @@ function ResolutionsByWeekday({ data }) {
         </ResponsiveContainer>
       ) : (
         <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles.</p>
+      )}
+    </div>
+  )
+}
+
+function FlowFunnel({ data }) {
+  // Map status codes to colors matching the status distribution chart
+  const statusColorMap = {
+    finalized: "#9FCB58", // bright green
+    diagnosis: "#FFD349", // bright yellow
+    in_repair: "#5894CB", // bright blue
+    open: "#FF7978", // bright red
+    trial: "#B678FB", // bright magenta
+    created: "#3b82f6", // blue for created status
+    assigned: "#eab308", // yellow for assigned
+    in_progress: "#f97316", // orange for in progress
+    closed: "#22c55e", // green for closed
+  }
+
+  const items = data?.items || []
+
+  // Capitalize status names
+  const formattedItems = items.map((item) => ({
+    ...item,
+    nombre: item.nombre
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" "),
+    color: statusColorMap[item.codigo] || "#9ca3af",
+  }))
+
+  return (
+    <div className="space-y-4">
+      {formattedItems.length > 0 ? (
+        formattedItems.map((item, index) => (
+          <div key={index} className="flex items-center gap-3">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div
+                className="h-3 rounded-full transition-all duration-300"
+                style={{
+                  width: `${item.porcentaje}%`,
+                  backgroundColor: item.color,
+                }}
+              ></div>
+            </div>
+            <span className="text-sm font-medium whitespace-nowrap min-w-fit">
+              {item.nombre} ({item.porcentaje.toFixed(0)}%)
+            </span>
+          </div>
+        ))
+      ) : (
+        <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles para el embudo de flujo.</p>
       )}
     </div>
   )

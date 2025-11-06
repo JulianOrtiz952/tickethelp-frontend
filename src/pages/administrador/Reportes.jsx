@@ -52,6 +52,9 @@ export default function Reportes() {
   const [resolutionsByWeekday, setResolutionsByWeekday] = useState(null)
   const [criticalTickets, setCriticalTickets] = useState(null)
   const [flowFunnel, setFlowFunnel] = useState(null)
+  const [ttaData, setTtaData] = useState(null)
+  const [ttrData, setTtrData] = useState(null)
+  const [ttaByState, setTtaByState] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -71,6 +74,9 @@ export default function Reportes() {
         resolutionsByWeekdayRes,
         criticalRes,
         flowFunnelRes,
+        ttaRes,
+        ttrRes,
+        ttaByStateRes,
       ] = await Promise.all([
         api("/api/reports/stats/general-stats/").catch((e) => {
           console.error("Error en general-stats:", e.status, e.data)
@@ -106,6 +112,18 @@ export default function Reportes() {
           console.error("Error en flow-funnel:", e.status, e.data)
           throw e
         }),
+        api("/api/reports/stats/tta/total/").catch((e) => {
+          console.error("Error en tta-total:", e.status, e.data)
+          throw e
+        }),
+        api("/api/reports/stats/ttr-promedio/").catch((e) => {
+          console.error("Error en ttr-promedio:", e.status, e.data)
+          throw e
+        }),
+        api("/api/reports/stats/tta/by-state/").catch((e) => {
+          console.error("Error en tta-by-state:", e.status, e.data)
+          throw e
+        }),
       ])
 
       setGeneralStats(statsRes)
@@ -116,6 +134,9 @@ export default function Reportes() {
       setResolutionsByWeekday(resolutionsByWeekdayRes)
       setCriticalTickets(criticalRes)
       setFlowFunnel(flowFunnelRes)
+      setTtaData(ttaRes)
+      setTtrData(ttrRes)
+      setTtaByState(ttaByStateRes)
     } catch (e) {
       console.error("Error cargando reportes:", e)
       const errorMsg = e?.data?.detail || e?.message || "Error al cargar los reportes. Intenta nuevamente."
@@ -235,43 +256,54 @@ export default function Reportes() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Tickets Críticos (Top 10)</h2>
           <div className="max-h-[360px] overflow-y-auto space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {criticalTickets && criticalTickets.length > 0 ? (
-              criticalTickets.map((ticket, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                  style={{
-                    borderLeft: `4px solid ${getCriticalityColor(ticket.dias)}`,
-                  }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <p className="font-semibold text-gray-900 text-sm">#{ticket.ticket_id}</p>
-                      <div className={`font-bold text-sm whitespace-nowrap ${getCriticalityBgColor(ticket.dias)}`}>
-                        {Math.ceil(ticket.dias)} día{Math.ceil(ticket.dias) !== 1 ? "s" : ""}
+            {criticalTickets &&
+            criticalTickets.filter(
+              (ticket) =>
+                ticket.estado_nombre?.toLowerCase() !== "finalized" &&
+                ticket.estado_nombre?.toLowerCase() !== "finalizado",
+            ).length > 0 ? (
+              criticalTickets
+                .filter(
+                  (ticket) =>
+                    ticket.estado_nombre?.toLowerCase() !== "finalized" &&
+                    ticket.estado_nombre?.toLowerCase() !== "finalizado",
+                )
+                .map((ticket, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                    style={{
+                      borderLeft: `4px solid ${getCriticalityColor(ticket.dias)}`,
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="font-semibold text-gray-900 text-sm">#{ticket.ticket_id}</p>
+                        <div className={`font-bold text-sm whitespace-nowrap ${getCriticalityBgColor(ticket.dias)}`}>
+                          {Math.ceil(ticket.dias)} día{Math.ceil(ticket.dias) !== 1 ? "s" : ""}
+                        </div>
                       </div>
+                      <p className="text-xs text-gray-600 truncate mb-1" title={ticket.titulo}>
+                        {ticket.titulo}
+                      </p>
+                      {ticket.cliente_nombre && (
+                        <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.cliente_nombre}>
+                          <span className="font-medium">Cliente:</span> {ticket.cliente_nombre}
+                        </p>
+                      )}
+                      {ticket.tecnico_nombre && (
+                        <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.tecnico_nombre}>
+                          <span className="font-medium">Técnico:</span> {ticket.tecnico_nombre}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs">
+                          {capitalizeStatus(ticket.estado_nombre)}
+                        </span>
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-600 truncate mb-1" title={ticket.titulo}>
-                      {ticket.titulo}
-                    </p>
-                    {ticket.cliente_nombre && (
-                      <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.cliente_nombre}>
-                        <span className="font-medium">Cliente:</span> {ticket.cliente_nombre}
-                      </p>
-                    )}
-                    {ticket.tecnico_nombre && (
-                      <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.tecnico_nombre}>
-                        <span className="font-medium">Técnico:</span> {ticket.tecnico_nombre}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500">
-                      <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs">
-                        {capitalizeStatus(ticket.estado_nombre)}
-                      </span>
-                    </p>
                   </div>
-                </div>
-              ))
+                ))
             ) : (
               <p className="text-gray-500 text-sm text-center py-8">No hay tickets críticos en este momento.</p>
             )}
@@ -282,6 +314,21 @@ export default function Reportes() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Embudo de Flujo</h2>
           <FlowFunnel data={flowFunnel} />
+        </div>
+      </div>
+
+      {/* ---------- TTA y TTR General ---------- */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tiempos Promedio */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tiempos Promedio</h2>
+          <AverageTimes ttaData={ttaData} ttrData={ttrData} />
+        </div>
+
+        {/* TTA por Estado */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">TTA por Estado</h2>
+          <TTAByState data={ttaByState} />
         </div>
       </div>
 
@@ -310,26 +357,28 @@ export default function Reportes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {ranking.map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="py-2 px-4">{r.nombre_completo}</td>
-                    <td className="py-2 px-4 text-center">{r.tickets_asignados}</td>
-                    <td className="py-2 px-4 text-center">{r.tickets_resueltos}</td>
-                    <td className="py-2 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-24 bg-gray-200 h-2 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${getSuccessBarColor(r.porcentaje_exito)}`}
-                            style={getSuccessBarStyle(r.porcentaje_exito)}
-                          ></div>
+                {[...ranking]
+                  .sort((a, b) => b.porcentaje_exito - a.porcentaje_exito)
+                  .map((r, i) => (
+                    <tr key={i} className="hover:bg-gray-50">
+                      <td className="py-2 px-4">{r.nombre_completo}</td>
+                      <td className="py-2 px-4 text-center">{r.tickets_asignados}</td>
+                      <td className="py-2 px-4 text-center">{r.tickets_resueltos}</td>
+                      <td className="py-2 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-24 bg-gray-200 h-2 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all ${getSuccessBarColor(r.porcentaje_exito)}`}
+                              style={getSuccessBarStyle(r.porcentaje_exito)}
+                            ></div>
+                          </div>
+                          <span className={`font-medium ${getSuccessTextColor(r.porcentaje_exito)}`}>
+                            {Math.round(r.porcentaje_exito)}%
+                          </span>
                         </div>
-                        <span className={`font-medium ${getSuccessTextColor(r.porcentaje_exito)}`}>
-                          {Math.round(r.porcentaje_exito)}%
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -835,6 +884,127 @@ function FlowFunnel({ data }) {
         ))
       ) : (
         <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles para el embudo de flujo.</p>
+      )}
+    </div>
+  )
+}
+
+function AverageTimes({ ttaData, ttrData }) {
+  // Helper function to format time from hours to HH:MM format
+  const formatTime = (horas) => {
+    if (!horas && horas !== 0) return "N/A"
+    const hours = Math.floor(horas)
+    const minutes = Math.round((horas - hours) * 60)
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  }
+
+  const ttaHoras = ttaData?.promedio_global?.promedio_horas || ttaData?.tta_horas
+  const ttaDias = ttaData?.promedio_global?.promedio_dias || ttaData?.tta_dias
+  const estadosSumados = ttaData?.estados_sumados
+
+  const ttrHoras = ttrData?.promedio_global?.promedio_horas || ttrData?.ttr_horas
+  const ttrDias = ttrData?.promedio_global?.promedio_dias || ttrData?.ttr_dias
+
+  return (
+    <div className="space-y-4">
+      {/* TTA - Tiempo de Primera Atención */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div>
+          <p className="text-sm font-medium text-gray-700">TTA (Primera Atención)</p>
+          <p className="text-xs text-gray-500">
+            {estadosSumados
+              ? `Calculado con ${estadosSumados} estado${estadosSumados !== 1 ? "s" : ""}`
+              : "Calculado solo con tickets aplicables"}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-gray-900">{formatTime(ttaHoras)}</p>
+          {ttaDias ? (
+            <p className="text-xs text-gray-500 mt-1">{ttaDias.toFixed(2)} días</p>
+          ) : (
+            <p className="text-xs text-gray-500 mt-1">0</p>
+          )}
+        </div>
+      </div>
+
+      {/* TTR - Resolución Total */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div>
+          <p className="text-sm font-medium text-gray-700">TTR (Resolución Total)</p>
+          <p className="text-xs text-gray-500">Calculado solo con tickets aplicables</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-gray-900">{formatTime(ttrHoras)}</p>
+          {ttrDias && <p className="text-xs text-gray-500 mt-1">{ttrDias.toFixed(2)} días</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TTAByState({ data }) {
+  const formatTime = (horas) => {
+    if (!horas && horas !== 0) return "N/A"
+    const hours = Math.floor(horas)
+    const minutes = Math.round((horas - hours) * 60)
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  }
+
+  const statusColorMap = {
+    finalized: "#9FCB58", // bright green
+    diagnosis: "#FFD349", // bright yellow
+    in_repair: "#5894CB", // bright blue
+    open: "#FF7978", // bright red
+    trial: "#B678FB", // bright magenta
+    closed: "#9FCB58", // bright green (same as finalized)
+    canceled: "#9ca3af", // gray
+  }
+
+  const states = Array.isArray(data) ? data : []
+
+  const filteredStates = states
+    .filter((state) => state.muestras > 0)
+    .sort((a, b) => b.promedio_horas - a.promedio_horas)
+
+  return (
+    <div>
+      {filteredStates.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50 text-gray-700 font-medium">
+              <tr>
+                <th className="py-2 px-4 text-left">Estado</th>
+                <th className="py-2 px-4 text-center">Muestras</th>
+                <th className="py-2 px-4 text-center">Tiempo Promedio</th>
+                <th className="py-2 px-4 text-center">Días</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredStates.map((state, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="py-2 px-4">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: statusColorMap[state.estado_codigo] || "#9ca3af" }}
+                      ></div>
+                      <span>{state.estado_nombre}</span>
+                    </div>
+                  </td>
+                  <td className="py-2 px-4 text-center">{state.muestras}</td>
+                  <td className="py-2 px-4 text-center">
+                    <span className="font-medium text-gray-900">{formatTime(state.promedio_horas)}</span>
+                  </td>
+                  <td className="py-2 px-4 text-center">
+                    <span className="text-gray-600">{state.promedio_dias.toFixed(2)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles de TTA por estado.</p>
       )}
     </div>
   )

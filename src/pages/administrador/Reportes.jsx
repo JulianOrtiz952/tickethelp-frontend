@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { TrendingUp, Users, ClipboardList, Activity, Clock } from "lucide-react"
+import { TrendingUp, Users, ClipboardList, Activity, Clock, TrendingDown } from "lucide-react"
 import { api } from "../../api/client"
 import {
   LineChart,
@@ -55,6 +55,7 @@ export default function Reportes() {
   const [ttaData, setTtaData] = useState(null)
   const [ttrData, setTtrData] = useState(null)
   const [ttaByState, setTtaByState] = useState(null)
+  const [clientesActivos, setClientesActivos] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -77,6 +78,7 @@ export default function Reportes() {
         ttaRes,
         ttrRes,
         ttaByStateRes,
+        clientesActivosRes,
       ] = await Promise.all([
         api("/api/reports/stats/general-stats/").catch((e) => {
           console.error("Error en general-stats:", e.status, e.data)
@@ -124,6 +126,10 @@ export default function Reportes() {
           console.error("Error en tta-by-state:", e.status, e.data)
           throw e
         }),
+        api("/api/reports/stats/clientes-activos-mes/").catch((e) => {
+          console.error("Error en clientes-activos-mes:", e.status, e.data)
+          throw e
+        }),
       ])
 
       setGeneralStats(statsRes)
@@ -137,6 +143,7 @@ export default function Reportes() {
       setTtaData(ttaRes)
       setTtrData(ttrRes)
       setTtaByState(ttaByStateRes)
+      setClientesActivos(clientesActivosRes)
     } catch (e) {
       console.error("Error cargando reportes:", e)
       const errorMsg = e?.data?.detail || e?.message || "Error al cargar los reportes. Intenta nuevamente."
@@ -199,6 +206,25 @@ export default function Reportes() {
           color="bg-blue-50 text-blue-700"
         />
         <StatCard
+          icon={
+            clientesActivos?.variacion_porcentual >= 0 ? (
+              <TrendingUp className="w-6 h-6 text-emerald-600" />
+            ) : (
+              <TrendingDown className="w-6 h-6 text-red-600" />
+            )
+          }
+          title="Clientes Únicos (Mes)"
+          value={clientesActivos?.mes_actual?.clientes_unicos ?? 0}
+          subtitle={
+            clientesActivos
+            ? `${clientesActivos.mes_anterior?.clientes_unicos} (mes anterior) • ${clientesActivos.variacion_porcentual >= 0 ? "+" : ""}${clientesActivos.variacion_porcentual.toFixed(1)}%`
+            : null
+          }
+          color={
+            clientesActivos?.variacion_porcentual >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+          }
+        />
+        <StatCard
           icon={<TrendingUp className="w-6 h-6 text-indigo-600" />}
           title="Promedio de Éxito"
           value={generalStats?.promedio_exito ? `${Math.round(generalStats.promedio_exito)}%` : "0%"}
@@ -256,56 +282,59 @@ export default function Reportes() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Tickets Críticos (Top 10)</h2>
           <div className="max-h-[360px] overflow-y-auto space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            {criticalTickets &&
-            criticalTickets.filter(
-              (ticket) =>
-                ticket.estado_nombre?.toLowerCase() !== "finalized" &&
-                ticket.estado_nombre?.toLowerCase() !== "finalizado",
-            ).length > 0 ? (
-              criticalTickets
-                .filter(
-                  (ticket) =>
-                    ticket.estado_nombre?.toLowerCase() !== "finalized" &&
-                    ticket.estado_nombre?.toLowerCase() !== "finalizado",
-                )
-                .map((ticket, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-                    style={{
-                      borderLeft: `4px solid ${getCriticalityColor(ticket.dias)}`,
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <p className="font-semibold text-gray-900 text-sm">#{ticket.ticket_id}</p>
-                        <div className={`font-bold text-sm whitespace-nowrap ${getCriticalityBgColor(ticket.dias)}`}>
-                          {Math.ceil(ticket.dias)} día{Math.ceil(ticket.dias) !== 1 ? "s" : ""}
+            {criticalTickets ? (
+              (() => {
+                const filtered = criticalTickets
+                  .filter(
+                    (ticket) =>
+                      ticket.estado_nombre?.toLowerCase() !== "finalized" &&
+                      ticket.estado_nombre?.toLowerCase() !== "finalizado",
+                  )
+                  .slice(0, 10)
+
+                return filtered.length > 0 ? (
+                  filtered.map((ticket) => (
+                    <div
+                      key={ticket.ticket_id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                      style={{
+                        borderLeft: `4px solid ${getCriticalityColor(ticket.dias)}`,
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="font-semibold text-gray-900 text-sm">#{ticket.ticket_id}</p>
+                          <div className={`font-bold text-sm whitespace-nowrap ${getCriticalityBgColor(ticket.dias)}`}>
+                            {Math.ceil(ticket.dias)} día{Math.ceil(ticket.dias) !== 1 ? "s" : ""}
+                          </div>
                         </div>
+                        <p className="text-xs text-gray-600 truncate mb-1" title={ticket.titulo}>
+                          {ticket.titulo}
+                        </p>
+                        {ticket.cliente_nombre && (
+                          <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.cliente_nombre}>
+                            <span className="font-medium">Cliente:</span> {ticket.cliente_nombre}
+                          </p>
+                        )}
+                        {ticket.tecnico_nombre && (
+                          <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.tecnico_nombre}>
+                            <span className="font-medium">Técnico:</span> {ticket.tecnico_nombre}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500">
+                          <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs">
+                            {capitalizeStatus(ticket.estado_nombre)}
+                          </span>
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-600 truncate mb-1" title={ticket.titulo}>
-                        {ticket.titulo}
-                      </p>
-                      {ticket.cliente_nombre && (
-                        <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.cliente_nombre}>
-                          <span className="font-medium">Cliente:</span> {ticket.cliente_nombre}
-                        </p>
-                      )}
-                      {ticket.tecnico_nombre && (
-                        <p className="text-xs text-gray-500 mb-1 truncate" title={ticket.tecnico_nombre}>
-                          <span className="font-medium">Técnico:</span> {ticket.tecnico_nombre}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500">
-                        <span className="inline-block px-1.5 py-0.5 bg-gray-100 rounded text-xs">
-                          {capitalizeStatus(ticket.estado_nombre)}
-                        </span>
-                      </p>
                     </div>
-                  </div>
-                ))
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm text-center py-8">No hay tickets críticos en este momento.</p>
+                )
+              })()
             ) : (
-              <p className="text-gray-500 text-sm text-center py-8">No hay tickets críticos en este momento.</p>
+              <p className="text-gray-500 text-sm text-center py-8">Cargando...</p>
             )}
           </div>
         </div>
@@ -483,11 +512,11 @@ function StatusDistribution({ data, onRefresh }) {
   const rawData = statusData?.items || []
 
   const statusColorMap = {
-    finalized: "#9FCB58", // bright green - Finalizado
-    diagnosis: "#FFD349", // bright orange - En diagnóstico
-    in_repair: "#5894CB", // bright blue - En reparación
-    open: "#FF7978", // bright red - Abierto
-    trial: "#B678FB", // bright magenta - En pruebas
+    finalized: "#9FCB58",
+    diagnosis: "#FFD349",
+    in_repair: "#5894CB",
+    open: "#FF7978",
+    trial: "#B678FB",
   }
 
   const formattedData = rawData
@@ -583,7 +612,6 @@ function StatusDistribution({ data, onRefresh }) {
             )}
           </div>
 
-          {/* Legend with percentages */}
           <div className="flex-1 flex flex-col justify-center gap-4">
             {displayData.length > 0 ? (
               displayData.map((item, index) => (
@@ -649,7 +677,6 @@ function ActivityHeatmap({ data }) {
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
           <div className="flex gap-6">
-            {/* Time Range Labels (Rows) */}
             <div className="flex flex-col gap-0 justify-start py-8 min-w-max">
               <div className="h-8 flex items-end"></div>
               {ranges.map((range, idx) => (
@@ -662,9 +689,7 @@ function ActivityHeatmap({ data }) {
               ))}
             </div>
 
-            {/* Heatmap Grid Cells */}
             <div className="flex-1">
-              {/* Day Headers (Columns) */}
               <div className="flex mb-4 px-0">
                 {days.map((day, idx) => (
                   <div
@@ -710,7 +735,6 @@ function ActivityHeatmap({ data }) {
         </div>
       )}
 
-      {/* Color Scale Legend */}
       <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-200">
         <span className="text-xs font-medium text-gray-600">0</span>
         <div className="flex gap-0">
@@ -773,22 +797,22 @@ function getSuccessBarStyle(percentage) {
 function ResolutionsByWeekday({ data }) {
   const [hoveredDay, setHoveredDay] = useState(null)
 
+  const dayOrder = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+  const dayMap = {
+    lunes: "Lun",
+    martes: "Mar",
+    miercoles: "Mié",
+    jueves: "Jue",
+    viernes: "Vie",
+    sabado: "Sáb",
+    domingo: "Dom",
+  }
+
   const chartData = data
-    ? Object.entries(data).map(([dayName, count]) => {
-        const dayMap = {
-          lunes: "Lun",
-          martes: "Mar",
-          miercoles: "Mié",
-          jueves: "Jue",
-          viernes: "Vie",
-          sabado: "Sáb",
-          domingo: "Dom",
-        }
-        return {
-          day: dayMap[dayName] || dayName,
-          "Tickets Cerrados": count,
-        }
-      })
+    ? dayOrder.map((dayName) => ({
+        day: dayMap[dayName],
+        "Tickets Cerrados": data[dayName] || 0,
+      }))
     : []
 
   const maxValue = chartData.length > 0 ? Math.max(...chartData.map((d) => d["Tickets Cerrados"])) : 0
@@ -838,22 +862,20 @@ function ResolutionsByWeekday({ data }) {
 }
 
 function FlowFunnel({ data }) {
-  // Map status codes to colors matching the status distribution chart
   const statusColorMap = {
-    finalized: "#9FCB58", // bright green
-    diagnosis: "#FFD349", // bright yellow
-    in_repair: "#5894CB", // bright blue
-    open: "#FF7978", // bright red
-    trial: "#B678FB", // bright magenta
-    created: "#3b82f6", // blue for created status
-    assigned: "#eab308", // yellow for assigned
-    in_progress: "#f97316", // orange for in progress
-    closed: "#22c55e", // green for closed
+    finalized: "#9FCB58",
+    diagnosis: "#FFD349",
+    in_repair: "#5894CB",
+    open: "#FF7978",
+    trial: "#B678FB",
+    created: "#3b82f6",
+    assigned: "#eab308",
+    in_progress: "#f97316",
+    closed: "#22c55e",
   }
 
   const items = data?.items || []
 
-  // Capitalize status names
   const formattedItems = items.map((item) => ({
     ...item,
     nombre: item.nombre
@@ -890,7 +912,6 @@ function FlowFunnel({ data }) {
 }
 
 function AverageTimes({ ttaData, ttrData }) {
-  // Helper function to format time from hours to HH:MM format
   const formatTime = (horas) => {
     if (!horas && horas !== 0) return "N/A"
     const hours = Math.floor(horas)
@@ -907,7 +928,6 @@ function AverageTimes({ ttaData, ttrData }) {
 
   return (
     <div className="space-y-4">
-      {/* TTA - Tiempo de Primera Atención */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
         <div>
           <p className="text-sm font-medium text-gray-700">TTA (Primera Atención)</p>
@@ -927,7 +947,6 @@ function AverageTimes({ ttaData, ttrData }) {
         </div>
       </div>
 
-      {/* TTR - Resolución Total */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
         <div>
           <p className="text-sm font-medium text-gray-700">TTR (Resolución Total)</p>
@@ -951,13 +970,13 @@ function TTAByState({ data }) {
   }
 
   const statusColorMap = {
-    finalized: "#9FCB58", // bright green
-    diagnosis: "#FFD349", // bright yellow
-    in_repair: "#5894CB", // bright blue
-    open: "#FF7978", // bright red
-    trial: "#B678FB", // bright magenta
-    closed: "#9FCB58", // bright green (same as finalized)
-    canceled: "#9ca3af", // gray
+    finalized: "#9FCB58",
+    diagnosis: "#FFD349",
+    in_repair: "#5894CB",
+    open: "#FF7978",
+    trial: "#B678FB",
+    closed: "#9FCB58",
+    canceled: "#9ca3af",
   }
 
   const states = Array.isArray(data) ? data : []

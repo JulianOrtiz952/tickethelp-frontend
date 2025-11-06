@@ -119,7 +119,8 @@ export default function Login() {
                                     onChange={(e) => setRemember(e.target.checked)} />
                                 <span className="text-gray-600">Recordarme</span>
                             </label>
-                            <Link to="/auth/forgot" className="text-[#1F5E89] hover:underline">¿Olvidaste tu contraseña?</Link>
+
+                            <Link to="/auth/forgot" className="text-[#1F5E89] hover:underline"></Link>
                         </div>
 
                         {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>}
@@ -133,6 +134,7 @@ export default function Login() {
                     </form>
                 </div>
             </div>
+
         </div>
     );
 }

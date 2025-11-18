@@ -24,4 +24,10 @@ export const ticketService = {
       body: { documento_tecnico: technicianDocument },
     })
   },
+
+  // Obtener solicitudes pendientes de aprobación
+  async getPendingApprovals() {
+    const data = await api("/api/tickets/pending-approvals/")
+    return data.requests || []
+  },
 }

@@ -5,8 +5,7 @@ import NotificationDetailModal from "./NotificationDetailModal";
 const fullName = (u) =>
     [u?.first_name, u?.last_name].filter(Boolean).join(" ") || u?.email || "—";
 
-// En tu backend, "leída" se marca con LEIDA.
-// Añadimos alternativas por si llega como número/código.
+
 const isRead = (estado) =>
     estado === "LEIDA" || estado === "READ" || estado === 3;
 

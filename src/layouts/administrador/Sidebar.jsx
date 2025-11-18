@@ -43,11 +43,17 @@ const links = [
       },
     ],
   },
+
   {
-    to: "/admin/cambios",
+    to: "/admin/historialcambios",
     label: "Historial de Cambios",
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -57,6 +63,8 @@ const links = [
       </svg>
     ),
   },
+
+
   {
     to: "/admin/usuarios",
     label: "Gestión de Usuarios",
@@ -101,14 +109,14 @@ const links = [
     ),
   },
   {
-  to: "/admin/reportes",
-  label: "Reportes",
-  icon: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m4 6V5m4 12v-3m5 3H2" />
-    </svg>
-  ),
-},
+    to: "/admin/reportes",
+    label: "Reportes",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6m4 6V5m4 12v-3m5 3H2" />
+      </svg>
+    ),
+  },
 ]
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {

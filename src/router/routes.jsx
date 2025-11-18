@@ -12,7 +12,7 @@ import Reportes from "../pages/administrador/Reportes"
 
 import TecnicoLayout from "../layouts/tecnico/TecnicoLayout";
 import TicketsAsignados from "../pages/tecnico/page";
-
+import ChangeHistoryPage from "../pages/ChangeHistoryPage";
 import NotificationsPage from "../pages/notifications/NotificationsPage";
 
 // Auth pages
@@ -43,6 +43,7 @@ export default function AppRoutes() {
           <Route path="usuarios" element={<UserPage />} />
           <Route path="usuarios/:document" element={<EditUserPage />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
+          <Route path="historialcambios" element={<ChangeHistoryPage />} />
           <Route path="reportes" element={<Reportes />} />
         </Route>
       </Route>
@@ -53,7 +54,8 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="tickets" replace />} />
           <Route path="tickets" element={<TicketsAsignados />} />
           <Route path="configuracion" element={<Configuracion />} />
-          <Route path="notificaciones" element={<NotificationsPage/>} />
+          <Route path="notificaciones" element={<NotificationsPage />} />
+          <Route path="historialcambios" element={<ChangeHistoryPage />} />
         </Route>
       </Route>
 

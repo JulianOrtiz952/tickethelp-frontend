@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogSlide } from "../../components/tickets/visualizar_tickets/Dialog"
-import { Progress } from "../../components/tickets/visualizar_tickets/Progress"
 import { Input } from "../../components/tickets/visualizar_tickets/Input"
-import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, Check, ClipboardCheck } from 'lucide-react'
+import { TicketApprovalModal } from "../../components/tickets/visualizar_tickets/TicketApprovalModal"
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck } from 'lucide-react'
 import { ticketService } from "../../api/ticketService"
 import ModalNotificacion from "../../components/ModalNotificacion"
+
 
 const ESTADO_CONFIG = {
   1: {
@@ -145,17 +146,14 @@ export default function VisualizarTickets() {
       await ticketService.changeTechnician(selectedTicket.id, selectedTechnicianId)
       await fetchTickets()
 
-      // Cierra el modal de reasignación
       setIsModalOpen(false)
 
-      // Prepara y muestra la notificación
       setNotifTitle("Técnico reasignado correctamente")
       setNotifMessage(
         `El ticket ${formatTicketNumber(selectedTicket)} fue asignado a ${getTechnicianName(selectedTechnicianId)}.`
       )
       setNotifOpen(true)
 
-      // Limpieza de selección
       setSelectedTicket(null)
       setSelectedTechnicianId(null)
     } catch (error) {
@@ -177,6 +175,38 @@ export default function VisualizarTickets() {
   const handleOpenProgressModal = (ticket) => {
     setProgressTicket(ticket)
     setIsProgressModalOpen(true)
+  }
+
+  const handleApproveState = async () => {
+    if (!progressTicket) return
+    
+    console.log("[v0] Aprobar estado para ticket:", progressTicket.id)
+    // TODO: Implementar la lógica de aprobación
+    // await ticketService.approveStateChange(progressTicket.id)
+    
+    setIsProgressModalOpen(false)
+    setNotifTitle("Estado aprobado")
+    setNotifMessage(`El cambio de estado del ticket ${formatTicketNumber(progressTicket)} ha sido aprobado.`)
+    setNotifOpen(true)
+    
+    await fetchTickets()
+    await fetchPendingApprovals()
+  }
+
+  const handleRejectState = async () => {
+    if (!progressTicket) return
+    
+    console.log("[v0] Rechazar estado para ticket:", progressTicket.id)
+    // TODO: Implementar la lógica de rechazo
+    // await ticketService.rejectStateChange(progressTicket.id)
+    
+    setIsProgressModalOpen(false)
+    setNotifTitle("Estado rechazado")
+    setNotifMessage(`El cambio de estado del ticket ${formatTicketNumber(progressTicket)} ha sido rechazado.`)
+    setNotifOpen(true)
+    
+    await fetchTickets()
+    await fetchPendingApprovals()
   }
 
   const formatTicketNumber = (ticket) => {
@@ -211,7 +241,6 @@ export default function VisualizarTickets() {
     return fullName.includes(search) || email.includes(search)
   })
 
-  // If is_active is undefined, assume the technician is active
   const availableTechnicians = filteredTechnicians.filter(
     (tech) => tech.is_active !== false && (tech.porcentaje_ocupacion || 0) < 100,
   )
@@ -287,7 +316,7 @@ export default function VisualizarTickets() {
                   isPending ? "bg-[#FDFFEB]" : "bg-white"
                 }`}
                 style={isPending ? {
-                  animation: 'gentle-bounce 1.1s ease-in-out infinite' //aquí
+                  animation: 'gentle-bounce 1.1s ease-in-out infinite'
                 } : {}}
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4 sm:mb-6">
@@ -568,126 +597,14 @@ export default function VisualizarTickets() {
           </div>
         </DialogSlide>
 
-        <Dialog open={isProgressModalOpen} onOpenChange={setIsProgressModalOpen}>
-          <DialogContent className="max-w-3xl">
-            <div className="p-6">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-center mb-8">Progreso del Ticket</DialogTitle>
-              </DialogHeader>
-
-              {progressTicket && (() => {
-                const currentState = progressTicket.estado
-                const pendingApproval = getPendingApproval(progressTicket.id)
-                const requestedState = pendingApproval?.estado_solicitado || currentState
-
-                const states = [
-                  { id: 1, label: "Abierto", icon: CircleAlert },
-                  { id: 2, label: "Diagnóstico", icon: Search },
-                  { id: 3, label: "En reparación", icon: Wrench },
-                  { id: 4, label: "En pruebas", icon: FlaskConical },
-                  { id: 5, label: "Finalizado", icon: CheckCircle },
-                ]
-
-                return (
-                  <div className="space-y-8">
-                    {/* Progress stepper */}
-                    <div className="relative">
-                      <div className="flex items-center justify-between">
-                        {states.map((state, index) => {
-                          const StateIcon = state.icon
-                          const isCompleted = state.id < requestedState
-                          const isCurrent = state.id === requestedState
-                          const isFuture = state.id > requestedState
-
-                          return (
-                            <div key={state.id} className="flex flex-col items-center flex-1">
-                              {/* Connecting line */}
-                              {index > 0 && (
-                                <div className="absolute left-0 right-0 top-[28px] h-1 -z-10">
-                                  <div
-                                    className={`h-full ${
-                                      state.id <= requestedState ? "bg-green-500" : "bg-gray-300"
-                                    }`}
-                                    style={{
-                                      width: `${100 / (states.length - 1)}%`,
-                                      marginLeft: `${((index - 1) * 100) / (states.length - 1)}%`,
-                                    }}
-                                  />
-                                </div>
-                              )}
-
-                              {/* State circle */}
-                              <div
-                                className={`w-14 h-14 rounded-full flex items-center justify-center ${
-                                  isCompleted
-                                    ? "bg-green-500"
-                                    : isCurrent
-                                    ? "bg-blue-500"
-                                    : "bg-gray-400"
-                                } z-10`}
-                              >
-                                {isCompleted ? (
-                                  <Check className="w-7 h-7 text-white" />
-                                ) : (
-                                  <StateIcon className="w-7 h-7 text-white" />
-                                )}
-                              </div>
-
-                              {/* State label */}
-                              <p
-                                className={`mt-2 text-sm font-medium text-center ${
-                                  isCurrent ? "text-blue-600" : "text-gray-700"
-                                }`}
-                              >
-                                {state.label}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Information box */}
-                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                      <p className="text-gray-700">
-                        El ticket se encuentra actualmente en la fase de{" "}
-                        <span className="font-semibold text-blue-600">
-                          {states.find((s) => s.id === requestedState)?.label}
-                        </span>
-                        . Selecciona si deseas aprobar la finalización o rechazar las pruebas para retornar a la fase
-                        anterior.
-                      </p>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex flex-wrap gap-3 justify-center">
-                      <button className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
-                        <Check className="w-5 h-5" />
-                        Aprobar pruebas
-                      </button>
-                      <button className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
-                        <X className="w-5 h-5" />
-                        Rechazar pruebas
-                      </button>
-                      <button
-                        onClick={() => setIsProgressModalOpen(false)}
-                        className="flex items-center gap-2 px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg font-medium transition-colors"
-                      >
-                        <X className="w-5 h-5" />
-                        Cancelar
-                      </button>
-                    </div>
-
-                    {/* Footer note */}
-                    <p className="text-center text-sm text-gray-500 italic">
-                      Estas acciones impactan la notificación final del cliente.
-                    </p>
-                  </div>
-                )
-              })()}
-            </div>
-          </DialogContent>
-        </Dialog>
+        <TicketApprovalModal
+          open={isProgressModalOpen}
+          onOpenChange={setIsProgressModalOpen}
+          ticket={progressTicket}
+          pendingApproval={getPendingApproval(progressTicket?.id)}
+          onApprove={handleApproveState}
+          onReject={handleRejectState}
+        />
 
         <ModalNotificacion
           open={notifOpen}

@@ -3,11 +3,15 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import clienteApi from "../../api/clienteApi";
+import TicketTimelineModal from "./TicketTimelineModal";
 
 export default function TicketsCliente() {
-  const { user } = useAuth(); // <-- AQUÍ SÍ FUNCIONA
+  const { user } = useAuth();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+
 
   const formatearFecha = (fecha) => {
     const d = new Date(fecha);
@@ -29,7 +33,7 @@ export default function TicketsCliente() {
   // Función para obtener el color del estado basado en el nombre
   const getEstadoColor = (estadoNombre) => {
     if (!estadoNombre) return "bg-gray-100 text-gray-800";
-    
+
     const nombreLower = estadoNombre.toLowerCase();
     const colores = {
       "abierto": "bg-red-100 text-red-800",
@@ -41,7 +45,7 @@ export default function TicketsCliente() {
       "pruebas": "bg-teal-100 text-teal-800",
       "finalizado": "bg-green-100 text-green-800",
     };
-    
+
     return colores[nombreLower] || "bg-blue-100 text-blue-800";
   };
 
@@ -124,7 +128,7 @@ export default function TicketsCliente() {
           {tickets.map((ticket) => {
             const estadoNombre = getEstadoNombre(ticket);
             const estadoColor = getEstadoColor(estadoNombre);
-            
+
             return (
               <div
                 key={ticket.id}
@@ -149,9 +153,16 @@ export default function TicketsCliente() {
                     </div>
                   </div>
 
-                  <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors">
+                  <button
+                    onClick={() => {
+                      setSelectedTicketId(ticket.id);
+                      setShowModal(true);
+                    }}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
                     Ver progreso del ticket
                   </button>
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -191,6 +202,13 @@ export default function TicketsCliente() {
           })}
         </div>
       )}
+      {showModal && (
+        <TicketTimelineModal
+          ticketId={selectedTicketId}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
     </div>
   );
 }

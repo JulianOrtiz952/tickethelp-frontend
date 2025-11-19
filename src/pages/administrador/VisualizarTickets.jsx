@@ -8,7 +8,6 @@ import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, Clipb
 import { ticketService } from "../../api/ticketService"
 import ModalNotificacion from "../../components/ModalNotificacion"
 
-
 const ESTADO_CONFIG = {
   1: {
     label: "Abierto",
@@ -91,8 +90,8 @@ export default function VisualizarTickets() {
     }
   }
 
-  const hasPendingApproval = (ticketId) => {
-    return pendingApprovals.some((approval) => approval.ticket === ticketId)
+  const hasPendingApproval = (ticket) => {
+    return ticket.estado === 4
   }
 
   const fetchTechnicians = async () => {
@@ -180,33 +179,41 @@ export default function VisualizarTickets() {
   const handleApproveState = async () => {
     if (!progressTicket) return
     
-    console.log("[v0] Aprobar estado para ticket:", progressTicket.id)
-    // TODO: Implementar la lógica de aprobación
-    // await ticketService.approveStateChange(progressTicket.id)
-    
-    setIsProgressModalOpen(false)
-    setNotifTitle("Estado aprobado")
-    setNotifMessage(`El cambio de estado del ticket ${formatTicketNumber(progressTicket)} ha sido aprobado.`)
-    setNotifOpen(true)
-    
-    await fetchTickets()
-    await fetchPendingApprovals()
+    try {
+      await ticketService.approveStateChange(progressTicket.id)
+      
+      setIsProgressModalOpen(false)
+      setNotifTitle("Estado aprobado")
+      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha sido finalizado correctamente.`)
+      setNotifOpen(true)
+      
+      await fetchTickets()
+    } catch (error) {
+      console.error("Error aprobando estado:", error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo aprobar el cambio de estado.")
+      setNotifOpen(true)
+    }
   }
 
   const handleRejectState = async () => {
     if (!progressTicket) return
     
-    console.log("[v0] Rechazar estado para ticket:", progressTicket.id)
-    // TODO: Implementar la lógica de rechazo
-    // await ticketService.rejectStateChange(progressTicket.id)
-    
-    setIsProgressModalOpen(false)
-    setNotifTitle("Estado rechazado")
-    setNotifMessage(`El cambio de estado del ticket ${formatTicketNumber(progressTicket)} ha sido rechazado.`)
-    setNotifOpen(true)
-    
-    await fetchTickets()
-    await fetchPendingApprovals()
+    try {
+      await ticketService.rejectStateChange(progressTicket.id)
+      
+      setIsProgressModalOpen(false)
+      setNotifTitle("Estado rechazado")
+      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha vuelto a En reparación.`)
+      setNotifOpen(true)
+      
+      await fetchTickets()
+    } catch (error) {
+      console.error("Error rechazando estado:", error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo rechazar el cambio de estado.")
+      setNotifOpen(true)
+    }
   }
 
   const formatTicketNumber = (ticket) => {
@@ -264,17 +271,13 @@ export default function VisualizarTickets() {
   }
 
   const sortedTickets = [...tickets].sort((a, b) => {
-    const aPending = hasPendingApproval(a.id)
-    const bPending = hasPendingApproval(b.id)
+    const aPending = hasPendingApproval(a)
+    const bPending = hasPendingApproval(b)
     
     if (aPending && !bPending) return -1
     if (!aPending && bPending) return 1
     return 0
   })
-
-  const getPendingApproval = (ticketId) => {
-    return pendingApprovals.find((approval) => approval.ticket === ticketId)
-  }
 
   if (loading) {
     return (
@@ -307,7 +310,7 @@ export default function VisualizarTickets() {
           {sortedTickets.map((ticket) => {
             const estadoConfig = ESTADO_CONFIG[ticket.estado] || ESTADO_CONFIG[1]
             const EstadoIcon = estadoConfig.icon
-            const isPending = hasPendingApproval(ticket.id)
+            const isPending = hasPendingApproval(ticket)
 
             return (
               <div 
@@ -601,7 +604,6 @@ export default function VisualizarTickets() {
           open={isProgressModalOpen}
           onOpenChange={setIsProgressModalOpen}
           ticket={progressTicket}
-          pendingApproval={getPendingApproval(progressTicket?.id)}
           onApprove={handleApproveState}
           onReject={handleRejectState}
         />

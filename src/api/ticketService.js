@@ -30,4 +30,20 @@ export const ticketService = {
     const data = await api("/api/tickets/pending-approvals/")
     return data.requests || []
   },
+
+  // Aprobar cambio de estado de un ticket (de En pruebas a Finalizado)
+  async approveStateChange(ticketId) {
+    return api(`/api/tickets/${ticketId}/`, {
+      method: "PATCH",
+      body: { estado: 5 },
+    })
+  },
+
+  // Rechazar cambio de estado de un ticket (volver a En reparación)
+  async rejectStateChange(ticketId) {
+    return api(`/api/tickets/${ticketId}/`, {
+      method: "PATCH",
+      body: { estado: 3 },
+    })
+  },
 }

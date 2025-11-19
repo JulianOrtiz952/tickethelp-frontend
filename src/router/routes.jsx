@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AdminRoute from "../pages/auth/AdminRoute";
 import TechRoute from "../pages/auth/TechRoute";
 import ClientRoute from "../pages/auth/ClientRoute";
+import Inicio from "../components/welcome"
 
 import AdminLayout from "../layouts/administrador/AdminLayout";
 import Configuracion from "../pages/administrador/Configuracion";
@@ -44,7 +45,8 @@ export default function AppRoutes() {
       {/* Admin protegido POR ROL */}
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="tickets/gestionar" replace />} />
+          <Route index element={<Navigate to="inicio" replace />} />
+          <Route path="inicio" element={<Inicio />} />
           <Route path="tickets/gestionar" element={<GestionarTickets />} />
           <Route path="tickets/visualizar" element={<VisualizarTickets />} />
           <Route path="configuracion" element={<Configuracion />} />
@@ -59,7 +61,8 @@ export default function AppRoutes() {
       {/* Técnico protegido POR ROL */}
       <Route element={<TechRoute />}>
         <Route path="/tecnico" element={<TecnicoLayout />}>
-          <Route index element={<Navigate to="tickets" replace />} />
+          <Route index element={<Navigate to="inicio" replace />} />
+          <Route path="inicio" element={<Inicio />} />
           <Route path="tickets" element={<TicketsAsignados />} />
           <Route path="configuracion" element={<Configuracion />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
@@ -70,7 +73,8 @@ export default function AppRoutes() {
       {/* Cliente protegido POR ROL */}
       <Route element={<ClientRoute />}>
         <Route path="/cliente" element={<ClienteLayout />}>
-          <Route index element={<InicioCliente />} />
+          <Route index element={<Navigate to="inicio" replace />} />
+          <Route path="inicio" element={<Inicio />} />
           <Route path="tickets" element={<TicketsCliente />} />
           <Route path="configuracion" element={<ConfiguracionCliente />} />
           <Route path="notificaciones" element={<NotificacionesCliente />} />

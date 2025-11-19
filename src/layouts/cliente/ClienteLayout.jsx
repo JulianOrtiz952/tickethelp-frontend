@@ -1,8 +1,8 @@
 "use client";
 
 import { Outlet } from "react-router-dom";
-import TecnicoSidebar from "./TecnicoSidebar";
-import TecnicoTopbar from "./TecnicoTopbar";
+import ClienteSidebar from "./ClienteSidebar";
+import ClienteTopbar from "./ClienteTopbar";
 import { useState } from "react";
 
 export default function TecnicoLayout() {
@@ -12,11 +12,11 @@ export default function TecnicoLayout() {
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
       {/* TOPBAR */}
-      <TecnicoTopbar onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)} />
+      <ClienteTopbar onMobileMenuToggle={() => setMobileMenuOpen((v) => !v)} />
 
       <div className="flex">
         {/* SIDEBAR */}
-        <TecnicoSidebar
+        <ClienteSidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((v) => !v)}
           mobileOpen={mobileMenuOpen}

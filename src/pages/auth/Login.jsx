@@ -12,6 +12,8 @@ export default function Login() {
     const ROLE_HOME = {
         ADMIN: "/admin/tickets/gestionar",
         TECH: "/tecnico/tickets",
+        CLIENT: "/cliente",
+
     };
 
     const from = loc.state?.from?.pathname || null;
@@ -20,16 +22,21 @@ export default function Login() {
         if (!role || !path) return false;
         if (role === "ADMIN") return path.startsWith("/admin");
         if (role === "TECH") return path.startsWith("/tecnico");
+        if (role === "CLIENT") return path.startsWith("/cliente");
         return false;
     }
 
     useEffect(() => {
-        if (!loading && user?.role) {
-            const role = user.role;
-            const target = isPathAllowed(role, from) ? from : (ROLE_HOME[role] || "/auth/login");
-            nav(target, { replace: true });
-        }
-    }, [loading, user, from, nav]);
+    if (!loading && user?.role) {
+        const role = user.role;
+        const target = isPathAllowed(role, from)
+            ? from
+            : (ROLE_HOME[role] || "/cliente"); // fallback seguro
+
+        nav(target, { replace: true });
+    }
+}, [loading, user, from, nav]);
+
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

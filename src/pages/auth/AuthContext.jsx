@@ -21,6 +21,20 @@ function getRoleFromToken(token) {
     }
 }
 
+// ------------------------
+//  EXTRAER DOCUMENT DEL TOKEN
+// ------------------------
+function getDocumentFromToken(token) {
+    try {
+        const [, b64] = token.split(".");
+        if (!b64) return null;
+        const json = JSON.parse(atob(b64));
+        return json?.document || json?.doc || null;
+    } catch {
+        return null;
+    }
+}
+
 // Normaliza múltiples formas a "ADMIN" | "TECH"
 function normalizeRole(raw) {
     const r = String(raw || "").trim().toUpperCase();
@@ -60,7 +74,9 @@ export function AuthProvider({ children }) {
                 }
 
                 // Guarda user normalizado (aunque el back no mande role)
-                setUser({ ...u, role });
+                const document = u?.document || getDocumentFromToken(token);
+                setUser({ ...u, role, document });
+
 
                 setIsAuthed(true);
             } catch {
@@ -95,7 +111,8 @@ export function AuthProvider({ children }) {
             role = normalizeRole(tokenRole);
         }
 
-        const userNorm = { ...u, role };
+        const document = u?.document || getDocumentFromToken(token);
+        const userNorm = { ...u, role, document };
         setUser(userNorm);
         setIsAuthed(true);
 

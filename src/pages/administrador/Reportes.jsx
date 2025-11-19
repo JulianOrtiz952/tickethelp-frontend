@@ -217,8 +217,8 @@ export default function Reportes() {
           value={clientesActivos?.mes_actual?.clientes_unicos ?? 0}
           subtitle={
             clientesActivos
-            ? `${clientesActivos.mes_anterior?.clientes_unicos} (mes anterior) • ${clientesActivos.variacion_porcentual >= 0 ? "+" : ""}${clientesActivos.variacion_porcentual.toFixed(1)}%`
-            : null
+              ? `${clientesActivos.mes_anterior?.clientes_unicos} (mes anterior) • ${clientesActivos.variacion_porcentual >= 0 ? "+" : ""}${clientesActivos.variacion_porcentual.toFixed(1)}%`
+              : null
           }
           color={
             clientesActivos?.variacion_porcentual >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
@@ -347,17 +347,11 @@ export default function Reportes() {
       </div>
 
       {/* ---------- TTA y TTR General ---------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tiempos Promedio */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* TTR General */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tiempos Promedio</h2>
-          <AverageTimes ttaData={ttaData} ttrData={ttrData} />
-        </div>
-
-        {/* TTA por Estado */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">TTA por Estado</h2>
-          <TTAByState data={ttaByState} />
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tiempo Promedio de Resolución</h2>
+          <AverageTimes ttrData={ttrData} />
         </div>
       </div>
 
@@ -911,17 +905,13 @@ function FlowFunnel({ data }) {
   )
 }
 
-function AverageTimes({ ttaData, ttrData }) {
+function AverageTimes({ ttrData }) {
   const formatTime = (horas) => {
     if (!horas && horas !== 0) return "N/A"
     const hours = Math.floor(horas)
     const minutes = Math.round((horas - hours) * 60)
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
   }
-
-  const ttaHoras = ttaData?.promedio_global?.promedio_horas || ttaData?.tta_horas
-  const ttaDias = ttaData?.promedio_global?.promedio_dias || ttaData?.tta_dias
-  const estadosSumados = ttaData?.estados_sumados
 
   const ttrHoras = ttrData?.promedio_global?.promedio_horas || ttrData?.ttr_horas
   const ttrDias = ttrData?.promedio_global?.promedio_dias || ttrData?.ttr_dias
@@ -930,101 +920,14 @@ function AverageTimes({ ttaData, ttrData }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
         <div>
-          <p className="text-sm font-medium text-gray-700">TTA (Primera Atención)</p>
-          <p className="text-xs text-gray-500">
-            {estadosSumados
-              ? `Calculado con ${estadosSumados} estado${estadosSumados !== 1 ? "s" : ""}`
-              : "Calculado solo con tickets aplicables"}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold text-gray-900">{formatTime(ttaHoras)}</p>
-          {ttaDias ? (
-            <p className="text-xs text-gray-500 mt-1">{ttaDias.toFixed(2)} días</p>
-          ) : (
-            <p className="text-xs text-gray-500 mt-1">0</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-        <div>
           <p className="text-sm font-medium text-gray-700">TTR (Resolución Total)</p>
-          <p className="text-xs text-gray-500">Calculado solo con tickets aplicables</p>
+          <p className="text-xs text-gray-500">Tiempo promedio para resolver tickets</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-bold text-gray-900">{formatTime(ttrHoras)}</p>
           {ttrDias && <p className="text-xs text-gray-500 mt-1">{ttrDias.toFixed(2)} días</p>}
         </div>
       </div>
-    </div>
-  )
-}
-
-function TTAByState({ data }) {
-  const formatTime = (horas) => {
-    if (!horas && horas !== 0) return "N/A"
-    const hours = Math.floor(horas)
-    const minutes = Math.round((horas - hours) * 60)
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
-  }
-
-  const statusColorMap = {
-    finalized: "#9FCB58",
-    diagnosis: "#FFD349",
-    in_repair: "#5894CB",
-    open: "#FF7978",
-    trial: "#B678FB",
-    closed: "#9FCB58",
-    canceled: "#9ca3af",
-  }
-
-  const states = Array.isArray(data) ? data : []
-
-  const filteredStates = states
-    .filter((state) => state.muestras > 0)
-    .sort((a, b) => b.promedio_horas - a.promedio_horas)
-
-  return (
-    <div>
-      {filteredStates.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-gray-700 font-medium">
-              <tr>
-                <th className="py-2 px-4 text-left">Estado</th>
-                <th className="py-2 px-4 text-center">Muestras</th>
-                <th className="py-2 px-4 text-center">Tiempo Promedio</th>
-                <th className="py-2 px-4 text-center">Días</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredStates.map((state, i) => (
-                <tr key={i} className="hover:bg-gray-50">
-                  <td className="py-2 px-4">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: statusColorMap[state.estado_codigo] || "#9ca3af" }}
-                      ></div>
-                      <span>{state.estado_nombre}</span>
-                    </div>
-                  </td>
-                  <td className="py-2 px-4 text-center">{state.muestras}</td>
-                  <td className="py-2 px-4 text-center">
-                    <span className="font-medium text-gray-900">{formatTime(state.promedio_horas)}</span>
-                  </td>
-                  <td className="py-2 px-4 text-center">
-                    <span className="text-gray-600">{state.promedio_dias.toFixed(2)}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-gray-500 text-sm text-center py-8">No hay datos disponibles de TTA por estado.</p>
-      )}
     </div>
   )
 }

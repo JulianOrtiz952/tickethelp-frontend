@@ -4,6 +4,28 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import clienteApi from "../../api/clienteApi";
 import TicketTimelineModal from "./TicketTimelineModal";
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle } from "lucide-react";
+
+// Configuración de estados (igual que en page.jsx del técnico)
+const ESTADO_CONFIG = {
+  1: { label: "Abierto", color: "bg-red-100 text-red-800", icon: CircleAlert },
+  2: { label: "En diagnóstico", color: "bg-orange-100 text-orange-800", icon: Search },
+  3: { label: "En reparación", color: "bg-yellow-100 text-yellow-800", icon: Wrench },
+  4: { label: "Pruebas", color: "bg-blue-100 text-blue-800", icon: FlaskConical },
+  5: { label: "Finalizado", color: "bg-green-100 text-green-800", icon: CheckCircle },
+};
+
+// Normalizador por nombre → id
+const NAME_TO_ID = {
+  abierto: 1,
+  "en diagnóstico": 2,
+  "en diagnostico": 2,
+  "en reparación": 3,
+  "en reparacion": 3,
+  pruebas: 4,
+  "en pruebas": 4,
+  finalizado: 5,
+};
 
 export default function TicketsCliente() {
   const { user } = useAuth();
@@ -11,7 +33,6 @@ export default function TicketsCliente() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
-
 
   const formatearFecha = (fecha) => {
     const d = new Date(fecha);
@@ -30,52 +51,20 @@ export default function TicketsCliente() {
     return `#TK-${year}-${paddedId}`;
   };
 
-  // Función para obtener el color del estado basado en el nombre
-  const getEstadoColor = (estadoNombre) => {
-    if (!estadoNombre) return "bg-gray-100 text-gray-800";
-
-    const nombreLower = estadoNombre.toLowerCase();
-    const colores = {
-      "abierto": "bg-red-100 text-red-800",
-      "en diagnóstico": "bg-teal-100 text-teal-800",
-      "en diagnostico": "bg-teal-100 text-teal-800",
-      "en reparación": "bg-yellow-100 text-yellow-800",
-      "en reparacion": "bg-yellow-100 text-yellow-800",
-      "en pruebas": "bg-teal-100 text-teal-800",
-      "pruebas": "bg-teal-100 text-teal-800",
-      "finalizado": "bg-green-100 text-green-800",
-    };
-
-    return colores[nombreLower] || "bg-blue-100 text-blue-800";
-  };
-
-  // Función para obtener el nombre del estado del ticket
-  const getEstadoNombre = (ticket) => {
-    // Si el estado es un objeto con nombre
-    if (ticket.estado?.nombre) {
-      return ticket.estado.nombre;
+  // Función para resolver el ID del estado
+  const resolveEstadoId = (ticket) => {
+    const e = ticket?.estado;
+    if (typeof e === "number") return e;
+    if (e?.id) return e.id;
+    if (e?.nombre) {
+      const id = NAME_TO_ID[e.nombre.toLowerCase()];
+      return id ?? 1;
     }
-    // Si el estado es un objeto con label
-    if (ticket.estado?.label) {
-      return ticket.estado.label;
+    if (typeof e === "string") {
+      const id = NAME_TO_ID[e.toLowerCase()];
+      return id ?? 1;
     }
-    // Si el estado es un número, mapearlo a nombre
-    if (typeof ticket.estado === "number" || typeof ticket.estado_id === "number") {
-      const estadoId = ticket.estado || ticket.estado_id;
-      const estadoMap = {
-        1: "Abierto",
-        2: "En diagnóstico",
-        3: "En reparación",
-        4: "En pruebas",
-        5: "Finalizado",
-      };
-      return estadoMap[estadoId] || "Sin estado";
-    }
-    // Si el estado es un string
-    if (typeof ticket.estado === "string") {
-      return ticket.estado;
-    }
-    return "Sin estado";
+    return 1;
   };
 
   useEffect(() => {
@@ -113,10 +102,10 @@ export default function TicketsCliente() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Mis Tickets</h1>
-        <p className="text-gray-600 mt-1">Aquí puedes ver tus tickets.</p>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mis Tickets</h1>
+        <div className="text-sm text-gray-500">Total: {tickets.length} tickets</div>
       </div>
 
       {tickets.length === 0 ? (
@@ -124,10 +113,11 @@ export default function TicketsCliente() {
           <p className="text-gray-500">No has creado ningún ticket.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-6 max-w-6xl">
           {tickets.map((ticket) => {
-            const estadoNombre = getEstadoNombre(ticket);
-            const estadoColor = getEstadoColor(estadoNombre);
+            const estadoId = resolveEstadoId(ticket);
+            const estadoCfg = ESTADO_CONFIG[estadoId] || ESTADO_CONFIG[1];
+            const EstadoIcon = estadoCfg.icon;
 
             return (
               <div
@@ -141,13 +131,14 @@ export default function TicketsCliente() {
                     </h2>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                       <span
-                        className={`inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${estadoColor}`}
+                        className={`inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${estadoCfg.color}`}
                       >
-                        {estadoNombre}
+                        <EstadoIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                        {estadoCfg.label}
                       </span>
-                      {(ticket.fecha || ticket.creado_en) && (
+                      {(ticket.creado_en || ticket.fecha) && (
                         <span className="text-gray-600 text-xs sm:text-sm">
-                          Creado: {formatearFecha(ticket.fecha || ticket.creado_en)}
+                          Creado: {formatearFecha(ticket.creado_en || ticket.fecha)}
                         </span>
                       )}
                     </div>
@@ -165,41 +156,31 @@ export default function TicketsCliente() {
 
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-                      Información del ticket
-                    </h3>
+              {/* Info */}
+              <div className="grid grid-cols-1">
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Información del Ticket</h3>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Título:</span>
+                      <p className="font-medium text-gray-800 text-sm sm:text-base">{ticket.titulo || "—"}</p>
+                    </div>
 
-                    <div className="space-y-2 sm:space-y-3">
-                      <div>
-                        <span className="text-gray-600 text-xs sm:text-sm">Titulo:</span>
-                        <p className="font-medium text-gray-800 text-sm sm:text-base">
-                          {ticket.titulo || "Sin título"}
-                        </p>
-                      </div>
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Descripción:</span>
+                      <p className="text-gray-800 text-sm sm:text-base">{ticket.descripcion || "—"}</p>
+                    </div>
 
-                      <div>
-                        <span className="text-gray-600 text-xs sm:text-sm">Descripción:</span>
-                        <p className="font-medium text-gray-800 text-sm sm:text-base">
-                          {ticket.descripcion || "Sin descripción"}
-                        </p>
-                      </div>
-
-                      {ticket.equipo && (
-                        <div>
-                          <span className="text-gray-600 text-xs sm:text-sm">Equipo:</span>
-                          <p className="font-medium text-gray-800 text-sm sm:text-base">
-                            {ticket.equipo}
-                          </p>
-                        </div>
-                      )}
+                    <div>
+                      <span className="text-gray-600 text-xs sm:text-sm">Equipo:</span>
+                      <p className="font-medium text-gray-800 text-sm sm:text-base">{ticket.equipo || "—"}</p>
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          )
+        })}
         </div>
       )}
       {showModal && (

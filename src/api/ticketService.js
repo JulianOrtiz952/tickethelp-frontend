@@ -33,17 +33,20 @@ export const ticketService = {
 
   // Aprobar cambio de estado de un ticket (de En pruebas a Finalizado)
   async approveStateChange(ticketId) {
-    return api(`/api/tickets/${ticketId}/`, {
-      method: "PATCH",
-      body: { estado: 5 },
+    return api(`/api/tickets/testing-approval/${ticketId}/`, {
+      method: "POST",
+      body: { action: "approve" },
     })
   },
 
-  // Rechazar cambio de estado de un ticket (volver a En reparación)
-  async rejectStateChange(ticketId) {
-    return api(`/api/tickets/${ticketId}/`, {
-      method: "PATCH",
-      body: { estado: 3 },
+  // Rechazar cambio de estado de un ticket (volver a la fase anterior)
+  async rejectStateChange(ticketId, rejectionReason = "Rechazado por el administrador") {
+    return api(`/api/tickets/testing-approval/${ticketId}/`, {
+      method: "POST",
+      body: {
+        action: "reject",
+        rejection_reason: rejectionReason,
+      },
     })
   },
 }

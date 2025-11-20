@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogSlide } from "../../components/tickets/visualizar_tickets/Dialog"
+import { DialogSlide } from "../../components/tickets/visualizar_tickets/Dialog"
 import { Input } from "../../components/tickets/visualizar_tickets/Input"
 import { TicketApprovalModal } from "../../components/tickets/visualizar_tickets/TicketApprovalModal"
-import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck } from 'lucide-react'
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck } from "lucide-react"
 import { ticketService } from "../../api/ticketService"
 import ModalNotificacion from "../../components/ModalNotificacion"
 
@@ -149,7 +149,7 @@ export default function VisualizarTickets() {
 
       setNotifTitle("Técnico reasignado correctamente")
       setNotifMessage(
-        `El ticket ${formatTicketNumber(selectedTicket)} fue asignado a ${getTechnicianName(selectedTechnicianId)}.`
+        `El ticket ${formatTicketNumber(selectedTicket)} fue asignado a ${getTechnicianName(selectedTechnicianId)}.`,
       )
       setNotifOpen(true)
 
@@ -178,16 +178,17 @@ export default function VisualizarTickets() {
 
   const handleApproveState = async () => {
     if (!progressTicket) return
-    
+
     try {
       await ticketService.approveStateChange(progressTicket.id)
-      
+
       setIsProgressModalOpen(false)
       setNotifTitle("Estado aprobado")
       setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha sido finalizado correctamente.`)
       setNotifOpen(true)
-      
+
       await fetchTickets()
+      await fetchPendingApprovals()
     } catch (error) {
       console.error("Error aprobando estado:", error)
       setNotifTitle("Error")
@@ -196,18 +197,19 @@ export default function VisualizarTickets() {
     }
   }
 
-  const handleRejectState = async () => {
+  const handleRejectState = async (rejectionReason) => {
     if (!progressTicket) return
-    
+
     try {
-      await ticketService.rejectStateChange(progressTicket.id)
-      
+      await ticketService.rejectStateChange(progressTicket.id, rejectionReason)
+
       setIsProgressModalOpen(false)
       setNotifTitle("Estado rechazado")
-      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha vuelto a En reparación.`)
+      setNotifMessage(`El ticket ${formatTicketNumber(progressTicket)} ha vuelto a la fase anterior.`)
       setNotifOpen(true)
-      
+
       await fetchTickets()
+      await fetchPendingApprovals()
     } catch (error) {
       console.error("Error rechazando estado:", error)
       setNotifTitle("Error")
@@ -273,7 +275,7 @@ export default function VisualizarTickets() {
   const sortedTickets = [...tickets].sort((a, b) => {
     const aPending = hasPendingApproval(a)
     const bPending = hasPendingApproval(b)
-    
+
     if (aPending && !bPending) return -1
     if (!aPending && bPending) return 1
     return 0
@@ -313,18 +315,24 @@ export default function VisualizarTickets() {
             const isPending = hasPendingApproval(ticket)
 
             return (
-              <div 
-                key={ticket.id} 
+              <div
+                key={ticket.id}
                 className={`rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 ${
                   isPending ? "bg-[#FDFFEB]" : "bg-white"
                 }`}
-                style={isPending ? {
-                  animation: 'gentle-bounce 1.1s ease-in-out infinite'
-                } : {}}
+                style={
+                  isPending
+                    ? {
+                        animation: "gentle-bounce 1.1s ease-in-out infinite",
+                      }
+                    : {}
+                }
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-4 sm:mb-6">
                   <div className="flex-1">
-                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">{formatTicketNumber(ticket)}</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+                      {formatTicketNumber(ticket)}
+                    </h2>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                       <span
                         className={`inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${estadoConfig.color}`}
@@ -386,9 +394,11 @@ export default function VisualizarTickets() {
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">Técnico Asignado</h3>
 
-                    <div className={`flex items-center space-x-3 p-3 rounded-lg ${
-                      isPending ? "bg-[#F9FAD5]" : "bg-gray-50"
-                    }`}>
+                    <div
+                      className={`flex items-center space-x-3 p-3 rounded-lg ${
+                        isPending ? "bg-[#F9FAD5]" : "bg-gray-50"
+                      }`}
+                    >
                       <img
                         src={getTechnicianAvatar(ticket.tecnico) || "/placeholder.svg"}
                         alt={getTechnicianName(ticket.tecnico)}
@@ -455,10 +465,11 @@ export default function VisualizarTickets() {
                           <button
                             key={tech.document}
                             onClick={() => setSelectedTechnicianId(tech.document)}
-                            className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${isSelected
-                              ? "border-teal-500 bg-teal-50"
-                              : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
-                              }`}
+                            className={`w-full p-3 sm:p-4 border rounded-lg transition-all ${
+                              isSelected
+                                ? "border-teal-500 bg-teal-50"
+                                : "border-gray-200 hover:border-teal-400 hover:bg-gray-50"
+                            }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">

@@ -30,7 +30,7 @@ export function InicioHero() {
           <div className="w-full flex justify-center">
             <div className="bg-white rounded-3xl shadow-md border border-gray-200 p-4 max-w-md w-full">
               <img
-                src="https://cdn.pixabay.com/photo/2015/10/30/20/13/sunrise-1014712_1280.jpg"
+                src="https://cdn.pixabay.com/photo/2023/02/21/12/02/teamwork-7804129_1280.jpg"
                 alt="Vista previa de Ticket-Help"
                 className="w-full h-auto rounded-2xl object-cover"
               />

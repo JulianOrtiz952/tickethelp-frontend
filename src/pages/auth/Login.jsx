@@ -10,9 +10,9 @@ export default function Login() {
     const { loading, user, login } = useAuth();
 
     const ROLE_HOME = {
-        ADMIN: "/admin/tickets/gestionar",
-        TECH: "/tecnico/tickets",
-        CLIENT: "/cliente",
+        ADMIN: "/admin/inicio",
+        TECH: "/tecnico/inicio",
+        CLIENT: "/cliente/inicio",
 
     };
 

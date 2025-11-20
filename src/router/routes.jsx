@@ -78,8 +78,8 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="inicio" replace />} />
           <Route path="inicio" element={<Inicio />} />
           <Route path="tickets" element={<TicketsCliente />} />
-          <Route path="configuracion" element={<ConfiguracionCliente />} />
-          <Route path="notificaciones" element={<NotificacionesCliente />} />
+          <Route path="configuracion" element={<Configuracion />} />
+          <Route path="notificaciones" element={<NotificationsPage />} />
         </Route>
       </Route>
 

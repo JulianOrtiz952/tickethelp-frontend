@@ -14,7 +14,7 @@ export function InicioCTA() {
         </p>
 
         <a
-  href="https://www.google.com/search?udm=2&q=meme+del+simio+con+el+dedo"
+  href="https://github.com/JulianOrtiz952/tickethelp-frontend"
   target="_blank"
   rel="noopener noreferrer"
   className="px-12 py-4 rounded-full text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:opacity-90"

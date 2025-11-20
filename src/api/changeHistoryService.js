@@ -1,4 +1,3 @@
-// src/api/changeHistoryService.js
 import { api } from "./client";
 
 const qs = (params = {}) =>
@@ -8,16 +7,23 @@ const qs = (params = {}) =>
         .join("&");
 
 /**
- * Historial de cambios de tickets
- * GET /api/change-history/?ticket=...&estado=...
+ * Obtener historial de un ticket
+ * GET /api/tickets/<ticket_id>/history/?user_document=...
  */
 export async function fetchChangeHistory(params = {}) {
-    const query = qs(params);
-    return api(`/api/change-history/${query ? `?${query}` : ""}`);
+    const { ticket, user_document, ...rest } = params;
+
+    if (!ticket) {
+        throw new Error("Debes enviar el número de ticket");
+    }
+
+    const query = qs({ user_document, ...rest });
+    return api(`/api/tickets/${ticket}/history/${query ? `?${query}` : ""}`);
 }
 
-// por si luego quieres ver el detalle de un cambio concreto
+
 export async function fetchChangeHistoryDetail(id, params = {}) {
+    console.warn("⚠️ Advertencia: tu backend NO tiene endpoint para detalle del historial.");
     const query = qs(params);
-    return api(`/api/change-history/${id}/${query ? `?${query}` : ""}`);
+    return api(`/api/tickets/${id}/history/${query ? `?${query}` : ""}`);
 }

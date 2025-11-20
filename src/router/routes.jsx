@@ -16,6 +16,7 @@ import TecnicoLayout from "../layouts/tecnico/TecnicoLayout";
 import TicketsAsignados from "../pages/tecnico/page";
 import ChangeHistoryPage from "../pages/ChangeHistoryPage";
 import NotificationsPage from "../pages/notifications/NotificationsPage";
+import RendimientoTecnico from "../pages/tecnico/TechnicianPerformanceDashboard";
 
 import ClienteLayout from "../layouts/cliente/ClienteLayout";
 
@@ -67,6 +68,7 @@ export default function AppRoutes() {
           <Route path="configuracion" element={<Configuracion />} />
           <Route path="notificaciones" element={<NotificationsPage />} />
           <Route path="historialcambios" element={<ChangeHistoryPage />} />
+          <Route path="rendimiento" element={<RendimientoTecnico />} />
         </Route>
       </Route>
 

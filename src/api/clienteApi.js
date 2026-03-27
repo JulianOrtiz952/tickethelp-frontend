@@ -23,7 +23,7 @@ clienteApi.interceptors.request.use(
 clienteApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    if (error.response && error.response.status === 401 && window.location.pathname !== "/auth/login") {
       localStorage.removeItem("access");
       sessionStorage.removeItem("access");
       window.location.href = "/auth/login";

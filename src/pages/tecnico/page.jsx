@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useState, useCallback } from "react"
-import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, ChevronDown, Loader2 } from "lucide-react"
+import { AttachmentsGalleryModal } from "../../components/tickets/visualizar_tickets/AttachmentsGalleryModal";
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, ChevronDown, Loader2, Ban, AlertTriangle, Image as ImageIcon } from "lucide-react"
 import { useAuth } from "../auth/AuthContext"
 import { api } from "../../api/client"
+import ModalNotificacion from "../../components/ModalNotificacion"
 
 // ------------------------- Config de estados -------------------------
 const ESTADO_CONFIG = {
@@ -12,6 +14,7 @@ const ESTADO_CONFIG = {
   3: { label: "En reparación",  color: "bg-yellow-100 text-yellow-800", icon: Wrench },
   4: { label: "Pruebas",        color: "bg-blue-100 text-blue-800",  icon: FlaskConical },
   5: { label: "Finalizado",     color: "bg-green-100 text-green-800", icon: CheckCircle }, // por si llega desde el backend
+  6: { label: "Cancelado",      color: "bg-gray-100 text-gray-800",  icon: Ban },
 }
 
 // Normalizador por nombre → id (por si backend manda string)
@@ -23,6 +26,7 @@ const NAME_TO_ID = {
   "en reparacion": 3,
   pruebas: 4,
   finalizado: 5,
+  cancelado: 6,
 }
 
 // Orden/flujo activo para el técnico (sin saltos ni aprobaciones)
@@ -79,7 +83,7 @@ function readJwtPayload() {
 
 // Función para validar si un estado es "terminal" (no permite más cambios)
 function isTerminalState(stateId) {
-  return stateId === 5 // 5 es "Finalizado"
+  return stateId === 5 || stateId === 6 // 5 es "Finalizado", 6 es "Cancelado"
 }
 
 // ------------------------- Modal simple -------------------------
@@ -109,11 +113,16 @@ export default function TicketsTecnicoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
 
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [galleryTicketId, setGalleryTicketId] = useState(null)
+
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
   const [modalTicket, setModalTicket] = useState(null)
   const [toState, setToState] = useState(null)
   const [saving, setSaving] = useState(false)
+
+  const [noti, setNoti] = useState({ open: false, title: "", message: "", variant: "error" })
 
   // 🔁 clave de refresco para re-consultar después de cambios
   const [refreshKey, setRefreshKey] = useState(0)
@@ -137,9 +146,9 @@ export default function TicketsTecnicoPage() {
   }, [user])
 
   // fetchTickets estable con useCallback
-  const fetchTickets = useCallback(async () => {
-    setLoading(true)
-    setError("")
+  const fetchTickets = useCallback(async (background = false) => {
+    if (!background) setLoading(true)
+    if (!background) setError("")
 
     const qs = new URLSearchParams()
     if (techIdentifier.document) {
@@ -159,7 +168,7 @@ export default function TicketsTecnicoPage() {
     })
 
     setTickets(Array.isArray(data) ? data : data?.results || data?.tickets || [])
-    setLoading(false)
+    if (!background) setLoading(false)
   }, [techIdentifier.document, techIdentifier.id, techIdentifier.email])
 
   // Carga inicial + recargas controladas por refreshKey
@@ -169,11 +178,17 @@ export default function TicketsTecnicoPage() {
       setLoading(false)
       return
     }
-    fetchTickets().catch((e) => {
+    fetchTickets(false).catch((e) => {
       console.error("[TicketsTecnico] error:", e)
       setError(e?.message || "Error al cargar tickets")
       setLoading(false)
     })
+
+    const interval = setInterval(() => {
+      fetchTickets(true).catch((e) => console.error("[TicketsTecnico] poll error:", e))
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [isAuthed, fetchTickets, refreshKey])
 
   function openChangeState(ticket) {
@@ -221,7 +236,11 @@ export default function TicketsTecnicoPage() {
       setToState(null)
     } catch (e) {
       console.error("[change-state] error:", e)
-      setError(e?.message || "No fue posible cambiar el estado.")
+      setNoti({ open: true, title: "Detalle del ticket", message: e?.message || "No fue posible cambiar el estado.", variant: "error" })
+      setRefreshKey((k) => k + 1)
+      setModalOpen(false)
+      setModalTicket(null)
+      setToState(null)
     } finally {
       setSaving(false)
     }
@@ -290,14 +309,24 @@ export default function TicketsTecnicoPage() {
                 </div>
 
                 {/* Acciones del técnico */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                   <button
-                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    onClick={() => {
+                      setGalleryTicketId(ticket.id)
+                      setGalleryOpen(true)
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Ver Adjuntos
+                  </button>
+                  <button
+                    onClick={() => canAdvance && openChangeState(ticket)}
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto ${
                       canAdvance
                         ? "bg-teal-600 hover:bg-teal-700 text-white"
                         : "bg-gray-200 text-gray-500 cursor-not-allowed"
                     }`}
-                    onClick={() => canAdvance && openChangeState(ticket)}
                     disabled={!canAdvance}
                     title={isTerminalState(estadoId) ? "Este ticket está finalizado y no puede cambiar de estado" : ""}
                   >
@@ -374,6 +403,21 @@ export default function TicketsTecnicoPage() {
           </div>
         )}
       </Modal>
+
+      <ModalNotificacion
+        open={noti.open}
+        onClose={() => setNoti((n) => ({ ...n, open: false }))}
+        title={noti.title}
+        message={noti.message}
+        variant={noti.variant}
+        autoCloseMs={5000}
+      />
+
+      <AttachmentsGalleryModal
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        ticketId={galleryTicketId}
+      />
     </div>
   )
 }

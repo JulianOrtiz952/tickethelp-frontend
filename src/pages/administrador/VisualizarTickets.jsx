@@ -4,9 +4,10 @@ import { useState, useEffect } from "react"
 import { DialogSlide } from "../../components/tickets/visualizar_tickets/Dialog"
 import { Input } from "../../components/tickets/visualizar_tickets/Input"
 import { TicketApprovalModal } from "../../components/tickets/visualizar_tickets/TicketApprovalModal"
-import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck } from "lucide-react"
+import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, ClipboardCheck, Ban, AlertTriangle, Image as ImageIcon } from "lucide-react"
 import { ticketService } from "../../api/ticketService"
 import ModalNotificacion from "../../components/ModalNotificacion"
+import { AttachmentsGalleryModal } from "../../components/tickets/visualizar_tickets/AttachmentsGalleryModal"
 
 const ESTADO_CONFIG = {
   1: {
@@ -34,6 +35,11 @@ const ESTADO_CONFIG = {
     color: "bg-green-100 text-green-800",
     icon: CheckCircle,
   },
+  6: {
+    label: "Cancelado",
+    color: "bg-gray-100 text-gray-800",
+    icon: Ban,
+  },
 }
 
 export default function VisualizarTickets() {
@@ -54,10 +60,24 @@ export default function VisualizarTickets() {
   const [notifMessage, setNotifMessage] = useState("")
   const [pendingApprovals, setPendingApprovals] = useState([])
 
+  const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [ticketToCancel, setTicketToCancel] = useState(null)
+  const [isCanceling, setIsCanceling] = useState(false)
+
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [galleryTicketId, setGalleryTicketId] = useState(null)
+
   useEffect(() => {
     fetchTickets()
     fetchUsers()
     fetchPendingApprovals()
+
+    const interval = setInterval(() => {
+      fetchTickets()
+      fetchPendingApprovals()
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const fetchUsers = async () => {
@@ -135,6 +155,11 @@ export default function VisualizarTickets() {
     fetchTechnicians()
   }
 
+  const handleOpenGallery = (ticket) => {
+    setGalleryTicketId(ticket.id)
+    setGalleryOpen(true)
+  }
+
   const handleChangeTechnician = async () => {
     if (!selectedTicket || !selectedTechnicianId || isChangingTechnician) return
 
@@ -168,6 +193,33 @@ export default function VisualizarTickets() {
       }
     } finally {
       setIsChangingTechnician(false)
+    }
+  }
+
+  const handleCancelClick = (ticket) => {
+    setTicketToCancel(ticket)
+    setCancelModalOpen(true)
+  }
+
+  const confirmCancel = async () => {
+    if (!ticketToCancel) return
+    setIsCanceling(true)
+    try {
+      await ticketService.cancelTicket(ticketToCancel.id)
+      setNotifTitle("Ticket cancelado")
+      setNotifMessage(`El ticket ${formatTicketNumber(ticketToCancel)} ha sido cancelado definitivamente.`)
+      setNotifOpen(true)
+      setCancelModalOpen(false)
+      await fetchTickets()
+    } catch (error) {
+      console.error(error)
+      setNotifTitle("Error")
+      setNotifMessage(error.message || "No se pudo cancelar el ticket.")
+      setNotifOpen(true)
+      setCancelModalOpen(false)
+    } finally {
+      setIsCanceling(false)
+      setTicketToCancel(null)
     }
   }
 
@@ -350,6 +402,15 @@ export default function VisualizarTickets() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2">
+                    {ticket.estado < 3 && (
+                      <button
+                        onClick={() => handleCancelClick(ticket)}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Ban className="w-4 h-4" />
+                        Cancelar
+                      </button>
+                    )}
                     {isPending && (
                       <button
                         onClick={() => handleOpenProgressModal(ticket)}
@@ -359,6 +420,13 @@ export default function VisualizarTickets() {
                         Aprobar/Rechazar estado
                       </button>
                     )}
+                    <button
+                      onClick={() => handleOpenGallery(ticket)}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Ver Adjuntos
+                    </button>
                     <button
                       onClick={() => handleOpenModal(ticket)}
                       className="flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
@@ -619,6 +687,47 @@ export default function VisualizarTickets() {
           onReject={handleRejectState}
         />
 
+        {/* Cancel Confirmation Modal */}
+        {cancelModalOpen && ticketToCancel && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden min-h-[50px]">
+              <div className="p-6">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-center text-gray-900 mb-2">
+                  ¿Cancelar Ticket?
+                </h3>
+                <p className="text-center text-gray-600 mb-6 text-sm sm:text-base">
+                  ¿Estás seguro que deseas cancelar el ticket <span className="font-semibold text-gray-800">{formatTicketNumber(ticketToCancel)}</span>? 
+                  Esta acción no se puede deshacer.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setCancelModalOpen(false)}
+                    disabled={isCanceling}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    No, mantener
+                  </button>
+                  <button
+                    onClick={confirmCancel}
+                    disabled={isCanceling}
+                    className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex justify-center items-center"
+                  >
+                    {isCanceling ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      "Sí, cancelar"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ModalNotificacion
           open={notifOpen}
           onClose={() => setNotifOpen(false)}
@@ -626,6 +735,12 @@ export default function VisualizarTickets() {
           message={notifMessage}
           autoCloseMs={3500}
           position="top-right"
+        />
+
+        <AttachmentsGalleryModal
+          isOpen={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          ticketId={galleryTicketId}
         />
       </div>
     </>

@@ -128,8 +128,25 @@ export function AuthProvider({ children }) {
         clearCredsAll();
     }
 
+    async function refreshUser() {
+        try {
+            const token = sessionStorage.getItem("access") || localStorage.getItem("access");
+            if (!token) return;
+            const u = await meApi();
+            let role = normalizeRole(u?.role);
+            if (!role) {
+                const tokenRole = getRoleFromToken(token);
+                role = normalizeRole(tokenRole);
+            }
+            const document = u?.document || getDocumentFromToken(token);
+            setUser({ ...u, role, document });
+        } catch (e) {
+            console.error("Error al refrescar usuario:", e);
+        }
+    }
+
     return (
-        <AuthCtx.Provider value={{ loading, isAuthed, user, login, logout }}>
+        <AuthCtx.Provider value={{ loading, isAuthed, user, login, logout, refreshUser }}>
             {children}
         </AuthCtx.Provider>
     );

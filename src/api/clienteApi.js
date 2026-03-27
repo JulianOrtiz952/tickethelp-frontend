@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const clienteApi = axios.create({
-  baseURL: "https://tickethelp-backend.onrender.com/api",
+  baseURL: "http://localhost:8000/api",
 });
 
 clienteApi.interceptors.request.use(
@@ -18,6 +18,18 @@ clienteApi.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+clienteApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem("access");
+      sessionStorage.removeItem("access");
+      window.location.href = "/auth/login";
+    }
+    return Promise.reject(error);
+  }
 );
 
 export default clienteApi;

@@ -1,4 +1,4 @@
-const BASE_URL = "https://tickethelp-backend.onrender.com"
+const BASE_URL = "http://localhost:8000"
 
 const authHeaders = () => {
   const token = localStorage.getItem("access")

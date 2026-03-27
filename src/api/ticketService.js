@@ -49,4 +49,29 @@ export const ticketService = {
       },
     })
   },
+
+  // Cancelar un ticket
+  async cancelTicket(ticketId, userDocument = null) {
+    const url = userDocument 
+      ? `/api/tickets/cancel/${ticketId}/?user_document=${userDocument}`
+      : `/api/tickets/cancel/${ticketId}/`
+    return api(url, {
+      method: "PUT",
+    })
+  },
+
+  // Consultar adjuntos de un ticket
+  async getAttachments(ticketId) {
+    return api(`/api/tickets/${ticketId}/attachments/`)
+  },
+
+  // Subir archivo adjunto a un ticket
+  async uploadAttachment(ticketId, file) {
+    const formData = new FormData()
+    formData.append("archivo", file)
+    return api(`/api/tickets/${ticketId}/attachments/`, {
+      method: "POST",
+      body: formData,
+    })
+  },
 }

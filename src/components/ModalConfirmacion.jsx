@@ -1,6 +1,6 @@
 import { FaUser, FaLaptop, FaTools, FaTimes, FaCheck } from "react-icons/fa";
 
-export default function ModalConfirmacion({ datos, onClose, onConfirm }) {
+export default function ModalConfirmacion({ datos, onClose, onConfirm, creandoTicket }) {
   const { usuario, equipo, tecnico, admin } = datos;
 
   return (
@@ -76,10 +76,13 @@ export default function ModalConfirmacion({ datos, onClose, onConfirm }) {
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-all shadow-sm"
+            disabled={creandoTicket}
+            className={`px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-all shadow-sm ${
+              creandoTicket ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
             <FaCheck className="text-sm" />
-            Confirmar Registro
+            {creandoTicket ? "Procesando..." : "Confirmar Registro"}
           </button>
         </div>
       </div>

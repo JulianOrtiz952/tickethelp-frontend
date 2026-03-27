@@ -1,4 +1,4 @@
-const BASE_URL = "https://tickethelp-backend.onrender.com"
+const BASE_URL = "http://localhost:8000"
 
 const authHeaders = () => {
   const token = localStorage.getItem("access")
@@ -35,9 +35,25 @@ export async function api(path, { method = "GET", headers = {}, body } = {}) {
   } catch {}
 
   if (!res.ok) {
-    const err = new Error(data?.detail || res.statusText || "Error de API")
+    let errMsg = data?.message || data?.detail || data?.error || res.statusText || "Error de API"
+    if (data && typeof data === 'object' && !data.message && !data.detail && !data.error) {
+       const firstKey = Object.keys(data)[0];
+       if (firstKey && Array.isArray(data[firstKey])) {
+           errMsg = data[firstKey][0];
+       } else if (typeof data[firstKey] === 'string') {
+           errMsg = data[firstKey];
+       }
+    }
+    const err = new Error(errMsg)
     err.status = res.status
     err.data = data
+
+    if (res.status === 401) {
+        localStorage.removeItem("access");
+        sessionStorage.removeItem("access");
+        window.location.href = "/auth/login";
+    }
+
     throw err
   }
   return data

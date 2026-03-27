@@ -43,7 +43,7 @@ function validatePasswordStrength(password) {
 }
 
 export default function Configuracion() {
-  const { user, isAuthed } = useAuth();
+  const { user, isAuthed, refreshUser } = useAuth();
 
   const [document, setDocument] = useState("");
   const [email, setEmail] = useState("");
@@ -171,12 +171,12 @@ export default function Configuracion() {
         number: phone,
       });
 
+      if (refreshUser) await refreshUser();
+
       setMessage({ type: "success", text: "Información actualizada correctamente" });
       setTimeout(() => setMessage(null), 3500);
     } catch (e) {
-      const msg =
-        e?.detail ||
-        (typeof e === "object" ? Object.values(e).flat().join(" | ") : "Error al actualizar.");
+      const msg = e?.message || "Error al actualizar.";
       setMessage({ type: "error", text: msg });
     } finally {
       setIsLoading(false);
@@ -209,7 +209,7 @@ export default function Configuracion() {
       setPasswords({ current: "", new: "", confirm: "" });
       setTimeout(() => setPasswordMessage(null), 3500);
     } catch (e) {
-      setPasswordMessage({ type: "error", text: "No se pudo cambiar la contraseña." });
+      setPasswordMessage({ type: "error", text: e?.message || "No se pudo cambiar la contraseña." });
       setTimeout(() => setPasswordMessage(null), 3500);
     } finally {
       setIsLoadingPassword(false);
@@ -225,6 +225,8 @@ export default function Configuracion() {
     try {
       // Si TECH no tiene permiso para persistir, esto puede fallar; ya lo manejamos
       await updateProfilePicture(document, seed);
+      if (refreshUser) await refreshUser();
+      
       setAvatarSeed(seed);
       setAvatarUrl(
         `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(seed)}&size=256`

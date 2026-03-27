@@ -48,7 +48,7 @@ export async function api(path, { method = "GET", headers = {}, body } = {}) {
     err.status = res.status
     err.data = data
 
-    if (res.status === 401) {
+    if (res.status === 401 && window.location.pathname !== "/auth/login") {
         localStorage.removeItem("access");
         sessionStorage.removeItem("access");
         window.location.href = "/auth/login";

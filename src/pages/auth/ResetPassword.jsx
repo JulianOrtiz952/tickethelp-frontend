@@ -1,22 +1,33 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import BrandTicket from "../../components/BrandTicket";
 import PasswordField from "../../components/forms/PasswordField";
+import { api } from "../../api/client";
 
 export default function ResetPassword() {
-    const [params] = useSearchParams(); // token vendrá por URL cuando conectes el backend
-    const token = params.get("token");
+    const { uid, token } = useParams();
+    const nav = useNavigate();
     const [p1, setP1] = useState("");
     const [p2, setP2] = useState("");
     const [error, setError] = useState("");
     const [ok, setOk] = useState(false);
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
         if (p1.length < 8) return setError("La contraseña debe tener al menos 8 caracteres.");
         if (p1 !== p2) return setError("Las contraseñas no coinciden.");
         setError("");
-        setOk(true); // solo UI
+
+        try {
+            await api("/api/users/auth/password-reset/confirm/", {
+                method: "POST",
+                body: { uidb64: uid, token: token, new_password: p1, new_password_confirm: p2 }
+            });
+            setOk(true);
+            setTimeout(() => nav("/auth/login"), 3000);
+        } catch (err) {
+            setError(err?.data?.detail || err?.detail || err?.message || "Ocurrió un error al restablecer");
+        }
     }
 
     return (
@@ -66,7 +77,7 @@ export default function ResetPassword() {
                         )}
                         {ok && (
                             <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
-                                ¡Listo! Tu contraseña fue actualizada (demo UI).
+                                ¡Listo! Tu contraseña fue actualizada. Redirigiendo al login...
                             </div>
                         )}
 
@@ -76,12 +87,6 @@ export default function ResetPassword() {
                         >
                             Confirmar
                         </button>
-
-                        {token && (
-                            <p className="text-[11px] text-gray-400 text-center mt-1">
-                                token: {token.slice(0, 8)}••• (solo para pruebas)
-                            </p>
-                        )}
                     </form>
                 </div>
             </div>

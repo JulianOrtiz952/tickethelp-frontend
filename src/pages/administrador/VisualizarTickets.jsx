@@ -8,6 +8,7 @@ import { CircleAlert, Search, Wrench, FlaskConical, CheckCircle, Users, X, Clipb
 import { ticketService } from "../../api/ticketService"
 import ModalNotificacion from "../../components/ModalNotificacion"
 import { AttachmentsGalleryModal } from "../../components/tickets/visualizar_tickets/AttachmentsGalleryModal"
+import { TicketFilters } from "../../components/tickets/visualizar_tickets/TicketFilters"
 
 const ESTADO_CONFIG = {
   1: {
@@ -64,8 +65,17 @@ export default function VisualizarTickets() {
   const [ticketToCancel, setTicketToCancel] = useState(null)
   const [isCanceling, setIsCanceling] = useState(false)
 
-  const [galleryOpen, setGalleryOpen] = useState(false)
+const [galleryOpen, setGalleryOpen] = useState(false)
   const [galleryTicketId, setGalleryTicketId] = useState(null)
+
+  // Estado para filtros
+  const [filters, setFilters] = useState({
+    searchText: "",
+    estados: [],
+    tecnico: null,
+    fechaDesde: "",
+    fechaHasta: "",
+  })
 
   useEffect(() => {
     fetchTickets()
@@ -324,7 +334,107 @@ export default function VisualizarTickets() {
     return "text-red-600"
   }
 
-  const sortedTickets = [...tickets].sort((a, b) => {
+// Convertir ESTADO_CONFIG a array para el componente de filtros
+  const estadosArray = Object.entries(ESTADO_CONFIG).map(([id, config]) => ({
+    id: parseInt(id),
+    ...config,
+  }))
+
+  // Función para obtener la lista de técnicos únicos de los tickets
+  const getUniqueTechnicians = () => {
+    const technicianDocuments = [...new Set(tickets.map((t) => t.tecnico).filter(Boolean))]
+    return technicianDocuments.map((doc) => {
+      const user = getUserByDocument(doc)
+      return {
+        document: doc,
+        first_name: user?.first_name || "",
+        last_name: user?.last_name || "",
+        email: user?.email || "",
+        profile_picture: user?.profile_picture || "/default_avatar.svg",
+      }
+    })
+  }
+
+  // Aplicar filtros a los tickets
+  const applyFilters = (ticketsToFilter) => {
+    return ticketsToFilter.filter((ticket) => {
+      // Filtro por búsqueda de texto
+      if (filters.searchText) {
+        const search = filters.searchText.toLowerCase()
+        const ticketNumber = formatTicketNumber(ticket).toLowerCase()
+        const titulo = (ticket.titulo || "").toLowerCase()
+        const equipo = (ticket.equipo || "").toLowerCase()
+        const descripcion = (ticket.descripcion || "").toLowerCase()
+
+        if (
+          !ticketNumber.includes(search) &&
+          !titulo.includes(search) &&
+          !equipo.includes(search) &&
+          !descripcion.includes(search)
+        ) {
+          return false
+        }
+      }
+
+      // Filtro por estados
+      if (filters.estados.length > 0 && !filters.estados.includes(ticket.estado)) {
+        return false
+      }
+
+      // Filtro por técnico
+      if (filters.tecnico && String(ticket.tecnico) !== String(filters.tecnico)) {
+        return false
+      }
+
+// Filtro por fecha desde
+      if (filters.fechaDesde) {
+        // Normalizar fecha del ticket a solo fecha (sin hora)
+        const ticketDate = new Date(ticket.creado_en)
+        const ticketDateOnly = new Date(ticketDate.getFullYear(), ticketDate.getMonth(), ticketDate.getDate())
+        
+        // Parsear la fecha del filtro (formato YYYY-MM-DD)
+        const [year, month, day] = filters.fechaDesde.split("-").map(Number)
+        const filterDate = new Date(year, month - 1, day)
+        
+        if (ticketDateOnly < filterDate) {
+          return false
+        }
+      }
+
+      // Filtro por fecha hasta
+      if (filters.fechaHasta) {
+        // Normalizar fecha del ticket a solo fecha (sin hora)
+        const ticketDate = new Date(ticket.creado_en)
+        const ticketDateOnly = new Date(ticketDate.getFullYear(), ticketDate.getMonth(), ticketDate.getDate())
+        
+        // Parsear la fecha del filtro (formato YYYY-MM-DD)
+        const [year, month, day] = filters.fechaHasta.split("-").map(Number)
+        const filterDate = new Date(year, month - 1, day)
+        
+        if (ticketDateOnly > filterDate) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  // Limpiar todos los filtros
+  const handleClearFilters = () => {
+    setFilters({
+      searchText: "",
+      estados: [],
+      tecnico: null,
+      fechaDesde: "",
+      fechaHasta: "",
+    })
+  }
+
+  // Aplicar filtros y ordenar tickets
+  const filteredTickets = applyFilters(tickets)
+
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
     const aPending = hasPendingApproval(a)
     const bPending = hasPendingApproval(b)
 
@@ -355,13 +465,42 @@ export default function VisualizarTickets() {
       `}</style>
 
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Visualizar Tickets</h1>
-          <div className="text-sm text-gray-500">Total: {tickets.length} tickets</div>
+          <div className="text-sm text-gray-500">
+            {filteredTickets.length === tickets.length
+              ? `Total: ${tickets.length} tickets`
+              : `Mostrando ${filteredTickets.length} de ${tickets.length} tickets`}
+          </div>
         </div>
 
+        <TicketFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          technicians={getUniqueTechnicians()}
+          estados={estadosArray}
+          onClearFilters={handleClearFilters}
+        />
+
         <div className="space-y-4 sm:space-y-6 max-w-6xl">
-          {sortedTickets.map((ticket) => {
+          {sortedTickets.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <Search className="w-12 h-12 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-700">No se encontraron tickets</h3>
+                <p className="text-sm text-gray-500 max-w-md">
+                  No hay tickets que coincidan con los filtros seleccionados. Intenta ajustar los criterios de búsqueda.
+                </p>
+                <button
+                  onClick={handleClearFilters}
+                  className="mt-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            </div>
+          ) : (
+            sortedTickets.map((ticket) => {
             const estadoConfig = ESTADO_CONFIG[ticket.estado] || ESTADO_CONFIG[1]
             const EstadoIcon = estadoConfig.icon
             const isPending = hasPendingApproval(ticket)
@@ -487,8 +626,9 @@ export default function VisualizarTickets() {
                   </div>
                 </div>
               </div>
-            )
-          })}
+)
+          })
+          )}
         </div>
 
         <DialogSlide open={isModalOpen} onOpenChange={setIsModalOpen}>

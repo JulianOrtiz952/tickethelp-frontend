@@ -2,15 +2,27 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import BrandTicket from "../../components/BrandTicket";
 import TextField from "../../components/forms/TextField";
+import { api } from "../../api/client";
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState("");
     const [sent, setSent] = useState(false);
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
         if (!email.trim()) return;
-        setSent(true); // UI únicamente
+        
+        // No importar el error si no existe, siempre decir que se envió
+        try {
+            await api("/api/users/auth/password-reset/", {
+                method: "POST",
+                body: { email: email.trim() }
+            });
+        } catch (err) {
+            // Ignorado para no revelar información
+        }
+        
+        setSent(true);
     }
 
     return (

@@ -112,6 +112,14 @@ export default function EditUserPage() {
                 payload.number = nextNumber;
             }
 
+            if (active !== Boolean(user.is_active)) {
+                payload.is_active = active;
+            }
+
+            if (email.trim() && email.trim() !== (user.email || "")) {
+                payload.email = email.trim();
+            }
+
 
             // 4) Validar cambios reales
             const hasChanges = Object.keys(payload).length > 0;

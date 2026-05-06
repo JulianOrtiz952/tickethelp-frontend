@@ -4,6 +4,7 @@ import {
     createUser,
     getUserByDocument,
     deleteOrSuggestDeactivate,
+    reactivateUser,
     listUsers,
     mapUserToRow,
 } from "../../api/user2";
@@ -58,6 +59,7 @@ export default function UsersPage() {
     const [error, setError] = useState("");
     const [showForm, setShowForm] = useState(false);
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmAction, setConfirmAction] = useState("deactivate");
     const [targetRow, setTargetRow] = useState(null);
 
     const [msg, setMsg] = useState({ open: false, title: "", message: "", variant: "info" });
@@ -204,6 +206,32 @@ export default function UsersPage() {
             setMsg({
                 open: true,
                 title: "No se pudo desactivar",
+                message: "Intenta de nuevo.",
+                variant: "error",
+            });
+        }
+    }
+
+    async function handleActivateConfirmed() {
+        if (!targetRow) return;
+        try {
+            const res = await reactivateUser(targetRow.document);
+            setRows((prev) =>
+                prev.map((r) => (r.document === targetRow.document ? { ...r, activo: true } : r))
+            );
+            setTargetRow(null);
+            setConfirmOpen(false);
+
+            setMsg({
+                open: true,
+                title: "Usuario activado",
+                message: res?.detail || res?.message || "El usuario fue activado.",
+                variant: "success",
+            });
+        } catch {
+            setMsg({
+                open: true,
+                title: "No se pudo activar",
                 message: "Intenta de nuevo.",
                 variant: "error",
             });
@@ -480,11 +508,19 @@ export default function UsersPage() {
                                                     className="px-2 py-1 border rounded hover:bg-gray-50"
                                                     onClick={() => navigate(`/admin/usuarios/${u.document}`)}
                                                 >✏️</button>
-                                                <button
-                                                    title="Desactivar"
-                                                    className="px-2 py-1 border rounded hover:bg-gray-50"
-                                                    onClick={() => { setTargetRow(u); setConfirmOpen(true); }}
-                                                >🗑️</button>
+                                                {u.activo ? (
+                                                    <button
+                                                        title="Desactivar"
+                                                        className="px-2 py-1 border rounded hover:bg-gray-50 text-red-600"
+                                                        onClick={() => { setConfirmAction("deactivate"); setTargetRow(u); setConfirmOpen(true); }}
+                                                    >🗑️</button>
+                                                ) : (
+                                                    <button
+                                                        title="Activar"
+                                                        className="px-2 py-1 border rounded hover:bg-gray-50 text-emerald-600"
+                                                        onClick={() => { setConfirmAction("activate"); setTargetRow(u); setConfirmOpen(true); }}
+                                                    >✅</button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -505,10 +541,10 @@ export default function UsersPage() {
 
             <ConfirmDialog
                 open={confirmOpen}
-                title="Desactivar usuario"
-                message={`¿Seguro que deseas desactivar al usuario ${targetRow?.document}?`}
+                title={confirmAction === "deactivate" ? "Desactivar usuario" : "Activar usuario"}
+                message={confirmAction === "deactivate" ? `¿Seguro que deseas desactivar al usuario ${targetRow?.document}?` : `¿Seguro que deseas activar al usuario ${targetRow?.document}?`}
                 onCancel={() => setConfirmOpen(false)}
-                onConfirm={handleDeleteConfirmed}
+                onConfirm={confirmAction === "deactivate" ? handleDeleteConfirmed : handleActivateConfirmed}
             />
 
             <MessageDialog

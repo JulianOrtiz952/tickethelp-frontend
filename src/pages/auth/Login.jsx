@@ -127,7 +127,7 @@ export default function Login() {
                                 <span className="text-gray-600">Recordarme</span>
                             </label>
 
-                            <Link to="/auth/forgot" className="text-[#1F5E89] hover:underline"></Link>
+                            <Link to="/auth/forgot" className="text-[#1F5E89] hover:underline">¿Olvidaste tu contraseña?</Link>
                         </div>
 
                         {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{error}</div>}

@@ -40,8 +40,9 @@ export default function AppRoutes() {
       <Route path="/auth">
         <Route path="login" element={<Login />} />
         <Route path="forgot" element={<ForgotPassword />} />
-        <Route path="reset" element={<ResetPassword />} />
       </Route>
+
+      <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
       {/* Admin protegido POR ROL */}
       <Route element={<AdminRoute />}>

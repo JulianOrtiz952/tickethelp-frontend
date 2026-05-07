@@ -97,8 +97,15 @@ export default function TicketTimelineModal({ ticketId, onClose }) {
                 }
             } catch (error) {
                 console.error("Error cargando la trazabilidad:", error);
-                setTimeline([]);
-                setCurrentEstado(null);
+                
+                // Manejo de acceso denegado (Forbidden)
+                if (error.response?.status === 403 || error.status === 403) {
+                    setTimeline([]);
+                    setCurrentEstado("ACCESO_DENEGADO");
+                } else {
+                    setTimeline([]);
+                    setCurrentEstado(null);
+                }
             } finally {
                 setLoading(false);
             }
@@ -131,6 +138,22 @@ export default function TicketTimelineModal({ ticketId, onClose }) {
                 {loading ? (
                     <div className="flex justify-center py-10">
                         <div className="animate-spin h-10 w-10 border-b-2 border-teal-600 rounded-full"></div>
+                    </div>
+                ) : currentEstado === "ACCESO_DENEGADO" ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <CircleAlert className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Sin autorización</h3>
+                        <p className="text-gray-600 max-w-sm">
+                            No tienes permiso para ver la trazabilidad de este ticket o el ticket no te pertenece.
+                        </p>
+                        <button
+                            onClick={onClose}
+                            className="mt-6 px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+                        >
+                            Cerrar
+                        </button>
                     </div>
                 ) : (
                     <div className="space-y-8 overflow-y-auto flex-1 pr-2">

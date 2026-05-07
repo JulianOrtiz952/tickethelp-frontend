@@ -1,7 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import AdminRoute from "../pages/auth/AdminRoute";
-import TechRoute from "../pages/auth/TechRoute";
-import ClientRoute from "../pages/auth/ClientRoute";
+import RoleProtectedRoute from "../pages/auth/RoleProtectedRoute";
 import Inicio from "../components/welcome"
 
 import AdminLayout from "../layouts/administrador/AdminLayout";
@@ -30,6 +28,8 @@ import TicketsCliente from "../pages/cliente/tickets_cliente";
 import ConfiguracionCliente from "../pages/cliente/ConfiguracionCliente";
 import NotificacionesCliente from "../pages/cliente/NotificacionesCliente";
 
+import PageNotFound from "../components/common/PageNotFound";
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -45,7 +45,7 @@ export default function AppRoutes() {
       <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
 
       {/* Admin protegido POR ROL */}
-      <Route element={<AdminRoute />}>
+      <Route element={<RoleProtectedRoute allowedRoles={["ADMIN"]} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="inicio" replace />} />
           <Route path="inicio" element={<Inicio />} />
@@ -61,7 +61,7 @@ export default function AppRoutes() {
       </Route>
 
       {/* Técnico protegido POR ROL */}
-      <Route element={<TechRoute />}>
+      <Route element={<RoleProtectedRoute allowedRoles={["TECH"]} />}>
         <Route path="/tecnico" element={<TecnicoLayout />}>
           <Route index element={<Navigate to="inicio" replace />} />
           <Route path="inicio" element={<Inicio />} />
@@ -74,7 +74,7 @@ export default function AppRoutes() {
       </Route>
 
       {/* Cliente protegido POR ROL */}
-      <Route element={<ClientRoute />}>
+      <Route element={<RoleProtectedRoute allowedRoles={["CLIENT"]} />}>
         <Route path="/cliente" element={<ClienteLayout />}>
           <Route index element={<Navigate to="inicio" replace />} />
           <Route path="inicio" element={<Inicio />} />
@@ -84,9 +84,8 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-
       {/* 404 */}
-      <Route path="*" element={<div className="p-6">Página no encontrada</div>} />
+      <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
 }

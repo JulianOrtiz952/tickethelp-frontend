@@ -13,31 +13,64 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import MessageDialog from "../../components/MessageDialog";
+import { 
+    Search, 
+    UserPlus, 
+    Pencil, 
+    Trash2, 
+    CheckCircle2, 
+    X, 
+    ChevronRight,
+    User as UserIcon,
+    Mail,
+    Shield
+} from "lucide-react";
 
 /* ---------- Pequeño componente de banner ---------- */
 function InfoBanner({ children }) {
     return (
-        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-            {children}
+        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900 shadow-sm">
+            <div className="flex gap-3">
+                <div className="mt-0.5">ℹ️</div>
+                <div>{children}</div>
+            </div>
         </div>
     );
 }
 
 /* ---------- Badges ---------- */
 function RoleBadge({ role }) {
-    const label = role === "ADMIN" ? "Administrador" : role === "TECH" ? "Técnico" : "Cliente";
-    return <span className="px-2 py-1 rounded-full text-xs border bg-gray-50">{label}</span>;
+    const configs = {
+        ADMIN: { label: "Administrador", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+        TECH: { label: "Técnico", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+        CLIENT: { label: "Cliente", cls: "bg-blue-50 text-blue-700 border-blue-200" }
+    };
+    const { label, cls } = configs[role] || { label: role, cls: "bg-gray-50 text-gray-700 border-gray-200" };
+    
+    return (
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
+            {label}
+        </span>
+    );
 }
+
 function StateBadge({ active }) {
-    const label = active ? "Activo" : "Inactivo";
-    const cls = active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700";
-    return <span className={`px-2 py-1 rounded-full text-xs ${cls}`}>{label}</span>;
+    return active ? (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Activo
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+            Inactivo
+        </span>
+    );
 }
 
 /* ---------- Validación (alineada al backend) ---------- */
 const schema = yup.object({
     document: yup.string().required("Documento requerido"),
-    // EXACTO: 10 dígitos y empieza por 3 (celular colombiano)
     number: yup
         .string()
         .matches(/^3\d{9}$/, "Debe iniciar con 3 y tener 10 dígitos (ej: 3001234567)")
@@ -75,14 +108,13 @@ export default function UsersPage() {
 
     const watchNumber = watch("number");
 
-    /* ---------- Cargar lista inicial ---------- */
     useEffect(() => {
         (async () => {
             try {
                 setLoading(true);
                 const list = await listUsers();
                 const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
-                setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
+                setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U", picture: r.profile_picture })));
                 setError("");
             } catch (err) {
                 setError("No se pudo cargar la lista de usuarios.");
@@ -92,7 +124,6 @@ export default function UsersPage() {
         })();
     }, []);
 
-    /* ---------- Buscar por documento ---------- */
     async function buscar(e) {
         e?.preventDefault?.();
         setError("");
@@ -101,7 +132,7 @@ export default function UsersPage() {
                 setLoading(true);
                 const list = await listUsers();
                 const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
-                setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
+                setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U", picture: r.profile_picture })));
             } catch {
                 setRows([]);
             } finally {
@@ -117,7 +148,7 @@ export default function UsersPage() {
                 setError("No existe un usuario con ese documento.");
                 setRows([]);
             } else {
-                setRows([{ ...userRow, avatar: userRow.nombre?.slice(0, 1) || "U" }]);
+                setRows([{ ...userRow, avatar: userRow.nombre?.slice(0, 1) || "U", picture: userRow.profile_picture }]);
             }
         } catch {
             setRows([]);
@@ -127,7 +158,6 @@ export default function UsersPage() {
         }
     }
 
-    /* ---------- Crear (sin password; backend usa document como contraseña inicial) ---------- */
     async function handleCreate(data) {
         try {
             const payload = {
@@ -153,15 +183,13 @@ export default function UsersPage() {
             setShowForm(false);
             reset();
 
-            // Refrescar tabla
             setLoading(true);
             const list = await listUsers();
             const mapped = Array.isArray(list) ? list.map(mapUserToRow) : [];
-            setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U" })));
+            setRows(mapped.map((r) => ({ ...r, avatar: r.nombre?.slice(0, 1) || "U", picture: r.profile_picture })));
             setLoading(false);
         } catch (err) {
             console.error("Create user error:", err);
-            // Capturar un mensaje amigable desde la respuesta del backend
             const dictMsg = (() => {
                 if (err && typeof err === "object") {
                     const keys = Object.keys(err).filter((k) => !["status", "url"].includes(k));
@@ -238,170 +266,125 @@ export default function UsersPage() {
         }
     }
 
-    /* ---------- Render ---------- */
     return (
-        <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+        <div className="p-8 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-semibold">Gestión de Usuarios</h1>
-                    <p className="text-sm text-gray-600">
-                        Administra usuarios, roles y permisos del sistema
+                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Gestión de Usuarios</h1>
+                    <p className="mt-1 text-gray-500">
+                        Administra usuarios, roles y permisos del sistema desde un panel centralizado.
                     </p>
                 </div>
 
                 {!showForm && (
                     <button
-                        className="px-4 py-2 rounded-xl bg-blue-600 text-white shadow hover:bg-blue-700"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium shadow-sm hover:bg-blue-700 transition-all active:scale-95"
                         onClick={() => setShowForm(true)}
                     >
-                        + Nuevo Usuario
+                        <UserPlus size={18} />
+                        Nuevo Usuario
                     </button>
                 )}
             </div>
 
             {showForm ? (
-                /* ======= FORMULARIO ======= */
-                <section className="max-w-4xl mx-auto">
-                    <nav className="text-sm text-gray-500 mb-3">
-                        <span className="cursor-default">Usuarios</span>
-                        <span className="mx-2">›</span>
-                        <span className="text-gray-700 font-medium">Agregar Usuario</span>
+                <section className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4 px-1">
+                        <span className="hover:text-blue-600 cursor-pointer" onClick={() => setShowForm(false)}>Usuarios</span>
+                        <ChevronRight size={14} />
+                        <span className="text-gray-900 font-semibold">Agregar Usuario</span>
                     </nav>
 
-                    <div className="bg-white rounded-xl shadow-sm border">
-                        <div className="px-6 pt-6">
-                            <h2 className="text-2xl font-semibold text-gray-800">Agregar Nuevo Usuario</h2>
-                            <p className="mt-1 text-sm text-gray-600">
-                                Complete la información para crear un nuevo usuario en el sistema
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                        <div className="bg-gray-50/50 px-8 py-6 border-b border-gray-100">
+                            <h2 className="text-2xl font-bold text-gray-800">Agregar Nuevo Usuario</h2>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Ingrese las credenciales iniciales y asigne un rol específico.
                             </p>
 
-                            {/* Banner explicativo para usuarios no técnicos */}
                             <InfoBanner>
-                                <ul className="list-disc pl-5 space-y-1">
-                                    <li>
-                                        <b>Contraseña inicial:</b> será el <b>mismo número de documento</b> del usuario.
-                                        Después, podrá cambiarla en “Cambiar contraseña”.
-                                    </li>
-                                    <li>
-                                        <b>Celular:</b> debe iniciar con <b>3</b> y tener <b>10 dígitos</b> (ejemplo: <code>3001234567</code>).
-                                        No incluyas espacios, guiones ni el +57.
-                                    </li>
-                                    <li>
-                                        <b>Correo:</b> debe ser válido (ejemplo: <code>usuario@dominio.com</code>).
-                                    </li>
-                                </ul>
+                                <div className="space-y-1.5">
+                                    <p><strong>Contraseña inicial:</strong> El número de documento.</p>
+                                    <p><strong>Celular colombiano:</strong> 10 dígitos (ej: 3001234567).</p>
+                                </div>
                             </InfoBanner>
                         </div>
 
-                        <form onSubmit={handleSubmit(handleCreate)} className="px-6 pb-6 mt-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tipo de Usuario *
+                        <form onSubmit={handleSubmit(handleCreate)} className="p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1 flex items-center gap-1.5">
+                                        <Shield size={14} className="text-blue-500" />
+                                        Tipo de Usuario
                                     </label>
                                     <select
                                         {...register("role")}
                                         defaultValue=""
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-gray-700
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none"
                                     >
-                                        <option value="" disabled>Seleccionar tipo de usuario</option>
+                                        <option value="" disabled>Seleccionar rol</option>
                                         <option value="ADMIN">Administrador</option>
                                         <option value="TECH">Técnico</option>
                                         <option value="CLIENT">Cliente</option>
                                     </select>
-                                    {errors.role && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.role.message}</p>
-                                    )}
+                                    {errors.role && <p className="text-xs text-red-500 ml-1">{errors.role.message}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Nombre *
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1 flex items-center gap-1.5">
+                                        <UserIcon size={14} className="text-blue-500" />
+                                        Nombre
                                     </label>
                                     <input
                                         {...register("first_name")}
-                                        placeholder="Ingrese el nombre"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Juan"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
-                                    {errors.first_name && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.first_name.message}</p>
-                                    )}
+                                    {errors.first_name && <p className="text-xs text-red-500 ml-1">{errors.first_name.message}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Apellido *
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1 flex items-center gap-1.5">
+                                        <UserIcon size={14} className="text-blue-500" />
+                                        Apellido
                                     </label>
                                     <input
                                         {...register("last_name")}
-                                        placeholder="Ingrese el apellido"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Pérez"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
-                                    {errors.last_name && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.last_name.message}</p>
-                                    )}
+                                    {errors.last_name && <p className="text-xs text-red-500 ml-1">{errors.last_name.message}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Tipo de Documento *
-                                    </label>
-                                    <select
-                                        defaultValue=""
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    >
-                                        <option value="" disabled>Seleccionar tipo</option>
-                                        <option value="CC">Cédula</option>
-                                        <option value="PP">Pasaporte</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Número de Documento *
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1">Número de Documento</label>
                                     <input
                                         {...register("document")}
-                                        placeholder="Ej: 1234567890"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="1234567890"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono"
                                     />
-                                    {errors.document && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.document.message}</p>
-                                    )}
-                                    <p className="mt-1 text-xs text-gray-500">
-                                        <b>Importante:</b> la contraseña inicial será este mismo número.
-                                    </p>
+                                    {errors.document && <p className="text-xs text-red-500 ml-1">{errors.document.message}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Correo Electrónico *
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1 flex items-center gap-1.5">
+                                        <Mail size={14} className="text-blue-500" />
+                                        Correo Electrónico
                                     </label>
                                     <input
                                         {...register("email")}
                                         type="email"
-                                        placeholder="usuario@ejemplo.com"
-                                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="juan.perez@ejemplo.com"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
-                                    {errors.email && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
-                                    )}
+                                    {errors.email && <p className="text-xs text-red-500 ml-1">{errors.email.message}</p>}
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Número de Teléfono (celular) *
-                                    </label>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1">Teléfono Móvil</label>
                                     <input
                                         {...register("number", {
                                             onChange: (e) => {
-                                                // limpiar espacios y no permitir caracteres que no sean dígitos
                                                 const digits = e.target.value.replace(/\D+/g, "");
                                                 setValue("number", digits, { shouldValidate: true });
                                             },
@@ -409,140 +392,164 @@ export default function UsersPage() {
                                         inputMode="numeric"
                                         maxLength={10}
                                         placeholder="3001234567"
-                                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2
-                               placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-gray-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-mono"
                                     />
-                                    {/* Ayuda para usuarios no técnicos */}
-                                    {!errors.number && watchNumber?.length > 0 && (
-                                        <p className="mt-1 text-xs text-emerald-700">
-                                            {/^3\d{9}$/.test(watchNumber)
-                                                ? "Formato válido ✔︎"
-                                                : "Recuerda: debe iniciar con 3 y tener 10 dígitos."}
-                                        </p>
-                                    )}
-                                    {errors.number && (
-                                        <p className="mt-1 text-xs text-red-600">{errors.number.message}</p>
-                                    )}
+                                    {errors.number && <p className="text-xs text-red-500 ml-1">{errors.number.message}</p>}
                                 </div>
                             </div>
 
-                            <div className="mt-6 flex items-center justify-between">
-                                <div className="flex gap-3">
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting}
-                                        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white
-                               hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-                                    >
-                                        <span>＋</span> Crear Usuario
-                                    </button>
-                                </div>
-
+                            <div className="mt-10 flex items-center justify-between pt-6 border-t border-gray-100">
                                 <button
                                     type="button"
                                     onClick={() => { setShowForm(false); reset(); }}
-                                    className="text-gray-600 hover:text-gray-800"
+                                    className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-800 transition-colors"
                                 >
                                     Cancelar
+                                </button>
+                                
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-2.5 text-white font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:opacity-50 transition-all active:scale-95"
+                                >
+                                    {isSubmitting ? "Creando..." : "Crear Usuario"}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </section>
             ) : (
-                /* ======= LISTA / TABLA ======= */
                 <>
-                    <form onSubmit={buscar} className="flex flex-wrap items-center gap-4 mb-6">
-                        <div className="relative flex-1">
-                            <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
+                    <form onSubmit={buscar} className="flex flex-wrap items-center gap-3 mb-8">
+                        <div className="relative flex-1 group">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors">
+                                <Search size={18} />
+                            </span>
                             <input
                                 value={documento}
                                 onChange={(e) => setDocumento(e.target.value)}
-                                placeholder="Buscar por documento..."
-                                className="pl-10 pr-3 py-2 border rounded-lg w-full"
+                                placeholder="Buscar usuario por documento..."
+                                className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
                             />
                         </div>
-                        <button type="submit" className="px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50">
+                        <button 
+                            type="submit" 
+                            className="px-8 py-3 rounded-2xl bg-gray-900 text-white font-semibold hover:bg-black transition-all shadow-md active:scale-95"
+                        >
                             Aplicar
                         </button>
                     </form>
 
-                    <div className="bg-white rounded-2xl shadow overflow-hidden">
-                        <div className="px-6 py-4 border-b font-semibold text-gray-700">Lista de Usuarios</div>
+                    <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden shadow-2xl shadow-gray-200/50 lg:rounded-[2.5rem]">
+                        <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+                            <h2 className="font-bold text-gray-800">Lista de Usuarios</h2>
+                            <span className="px-3 py-1 bg-white border border-gray-100 rounded-lg text-xs font-bold text-gray-500 shadow-sm">
+                                {rows.length} REGISTROS
+                            </span>
+                        </div>
+                        
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr className="text-left text-sm text-gray-600">
-                                        <th className="p-4">USUARIO</th>
-                                        <th className="p-4">CORREO</th>
-                                        <th className="p-4">ROL</th>
-                                        <th className="p-4">ESTADO</th>
-                                        <th className="p-4">FECHA CREACIÓN</th>
-                                        <th className="p-4">ACCIONES</th>
+                            <table className="min-w-full divide-y divide-gray-100">
+                                <thead className="bg-white">
+                                    <tr className="text-left text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em]">
+                                        <th className="px-8 py-5">Usuario</th>
+                                        <th className="px-8 py-5">Correo</th>
+                                        <th className="px-8 py-5 text-center">Rol</th>
+                                        <th className="px-8 py-5 text-center">Estado</th>
+                                        <th className="px-8 py-5">Creado el</th>
+                                        <th className="px-8 py-5 text-right">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="divide-y divide-gray-50">
                                     {loading && (
-                                        <tr><td className="p-4 text-center" colSpan={6}>Cargando...</td></tr>
+                                        <tr><td className="p-12 text-center" colSpan={6}>
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="text-gray-500 font-medium">Cargando usuarios...</span>
+                                            </div>
+                                        </td></tr>
                                     )}
                                     {!loading && rows.length === 0 && (
-                                        <tr><td className="p-4 text-center" colSpan={6}>Sin resultados</td></tr>
+                                        <tr><td className="p-12 text-center" colSpan={6}>
+                                            <div className="text-gray-400 flex flex-col items-center gap-2">
+                                                <Search size={40} className="text-gray-200" />
+                                                <p className="font-medium">No se encontraron usuarios</p>
+                                            </div>
+                                        </td></tr>
                                     )}
                                     {rows.map((u) => (
-                                        <tr key={u.id} className="border-t hover:bg-gray-50">
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                                        <span className="text-sm">{u.avatar}</span>
+                                        <tr key={u.id} className="hover:bg-blue-50/30 transition-colors group">
+                                            <td className="px-8 py-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                                                        {u.picture ? (
+                                                            <img src={u.picture} alt={u.nombre} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            u.avatar
+                                                        )}
                                                     </div>
-                                                    <span>{u.nombre}</span>
+                                                    <div>
+                                                        <div className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{u.nombre}</div>
+                                                        <div className="text-xs text-gray-400 font-medium font-mono">{u.document}</div>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="p-4">{u.correo}</td>
-                                            <td className="p-4"><RoleBadge role={u.rol} /></td>
-                                            <td className="p-4"><StateBadge active={u.activo} /></td>
-                                            <td className="p-4">{u.fecha}</td>
-                                            <td className="p-4 flex gap-2">
-                                                <button
-                                                    title="Editar"
-                                                    className="px-2 py-1 border rounded hover:bg-gray-50"
-                                                    onClick={() => navigate(`/admin/usuarios/${u.document}`)}
-                                                >✏️</button>
-                                                {u.activo ? (
+                                            <td className="px-8 py-4">
+                                                <div className="text-sm text-gray-600 font-medium">{u.correo}</div>
+                                            </td>
+                                            <td className="px-8 py-4 text-center">
+                                                <RoleBadge role={u.rol} />
+                                            </td>
+                                            <td className="px-8 py-4 text-center">
+                                                <StateBadge active={u.activo} />
+                                            </td>
+                                            <td className="px-8 py-4">
+                                                <div className="text-sm text-gray-500 font-medium">{u.fecha}</div>
+                                            </td>
+                                            <td className="px-8 py-4">
+                                                <div className="flex items-center justify-end gap-2">
                                                     <button
-                                                        title="Desactivar"
-                                                        className="px-2 py-1 border rounded hover:bg-gray-50 text-red-600"
-                                                        onClick={() => { setConfirmAction("deactivate"); setTargetRow(u); setConfirmOpen(true); }}
-                                                    >🗑️</button>
-                                                ) : (
-                                                    <button
-                                                        title="Activar"
-                                                        className="px-2 py-1 border rounded hover:bg-gray-50 text-emerald-600"
-                                                        onClick={() => { setConfirmAction("activate"); setTargetRow(u); setConfirmOpen(true); }}
-                                                    >✅</button>
-                                                )}
+                                                        title="Editar Usuario"
+                                                        className="p-2 rounded-xl border border-gray-100 bg-white text-gray-400 hover:text-blue-600 hover:border-blue-200 hover:shadow-sm transition-all"
+                                                        onClick={() => navigate(`/admin/usuarios/${u.document}`)}
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    
+                                                    {u.activo ? (
+                                                        <button
+                                                            title="Desactivar Usuario"
+                                                            className="p-2 rounded-xl border border-gray-100 bg-white text-gray-400 hover:text-red-600 hover:border-red-200 hover:shadow-sm transition-all"
+                                                            onClick={() => { setConfirmAction("deactivate"); setTargetRow(u); setConfirmOpen(true); }}
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            title="Activar Usuario"
+                                                            className="p-2 rounded-xl border border-gray-100 bg-white text-gray-400 hover:text-emerald-600 hover:border-emerald-200 hover:shadow-sm transition-all"
+                                                            onClick={() => { setConfirmAction("activate"); setTargetRow(u); setConfirmOpen(true); }}
+                                                        >
+                                                            <CheckCircle2 size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-
-                        <div className="flex items-center justify-between p-4 text-sm text-gray-600">
-                            <span>
-                                Mostrando {rows.length} usuario(s)
-                            </span>
-                        </div>
                     </div>
-
-                    {error && <p className="text-red-600 mt-4">{error}</p>}
                 </>
             )}
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={confirmAction === "deactivate" ? "Desactivar usuario" : "Activar usuario"}
-                message={confirmAction === "deactivate" ? `¿Seguro que deseas desactivar al usuario ${targetRow?.document}?` : `¿Seguro que deseas activar al usuario ${targetRow?.document}?`}
+                title={confirmAction === "deactivate" ? "Desactivar" : "Activar"}
+                message={confirmAction === "deactivate" 
+                    ? `¿Estás seguro de desactivar al usuario con documento ${targetRow?.document}?` 
+                    : `¿Estás seguro de activar al usuario con documento ${targetRow?.document}?`}
                 onCancel={() => setConfirmOpen(false)}
                 onConfirm={confirmAction === "deactivate" ? handleDeleteConfirmed : handleActivateConfirmed}
             />

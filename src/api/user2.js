@@ -14,6 +14,7 @@ export function mapUserToRow(u) {
         rol: u.role,
         activo: u.is_active,
         fecha: u.date_joined?.slice(0, 10)?.split("-")?.reverse()?.join("/") || "-",
+        profile_picture: u.profile_picture || `https://api.dicebear.com/9.x/thumbs/png?seed=${encodeURIComponent(u.document || u.email)}&size=128`,
         raw: u,
     };
 }

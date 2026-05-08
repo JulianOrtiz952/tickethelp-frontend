@@ -19,7 +19,6 @@ function readJwtPayload() {
 
 function computeDisplay(user) {
   const p = readJwtPayload();
-  console.log(user)
   const first = user?.user.first_name || p?.first_name || p?.given_name || user?.username || p?.username || "";
   const last = user?.last_name || p?.last_name || p?.family_name || "";
   const name =
